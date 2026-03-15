@@ -150,6 +150,8 @@ app.post('/api/generate-profiles', async (req, res) => {
       if (rawText.startsWith('```json')) {
         rawText = rawText.match(/```json\s*([\s\S]*?)\s*```/)?.[1] || rawText;
       }
+      // Fix trailing commas before closing braces/brackets
+      rawText = rawText.replace(/,(\s*[}\]])/g, '$1');
       const profiles = JSON.parse(rawText);
       res.json(profiles);
     } catch (parseError) {
@@ -371,8 +373,15 @@ ${emotionalSummary ? `Emotional summary: ${emotionalSummary}` : ''}
 Find the character that most precisely mirrors this psychological profile.`;
     
     const result = await model.generateContent(context);
-    const text = (await result.response).text().trim().replace(/```json|```/g, '');
-    res.json(JSON.parse(text));
+    let rawText = (await result.response).text().trim();
+    if (rawText.startsWith('```json')) {
+      rawText = rawText.match(/```json\s*([\s\S]*?)\s*```/)?.[1] || rawText;
+    } else {
+      rawText = rawText.replace(/```json|```/g, '');
+    }
+    // Fix trailing commas before closing braces/brackets
+    rawText = rawText.replace(/,(\s*[}\]])/g, '$1');
+    res.json(JSON.parse(rawText));
   } catch (error) {
     console.error('Archetype Error:', error);
     res.status(500).json({ error: 'Failed to identify archetype.' });

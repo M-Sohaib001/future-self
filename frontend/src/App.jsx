@@ -8,15 +8,32 @@ import PersonaChat from './components/PersonaChat';
 import FinalLetter from './components/FinalLetter';
 import CharacterArchetype from './components/CharacterArchetype';
 import ReviewScreen from './components/ReviewScreen';
+import { useAmbientMusic } from './hooks/useAmbientMusic';
+import { useVoice } from './hooks/useVoice';
+import { clearSessions } from './utils/sessionMemory';
 
 function App() {
   const [step, setStep] = useState(() => sessionStorage.getItem('fs_step') || 'disclaimer');
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('fs_apiKey') || '');
   const [coreDesire, setCoreDesire] = useState(() => sessionStorage.getItem('fs_coreDesire') || '');
+  const [emotionalArc, setEmotionalArc] = useState(null);
+  const [sessionStats, setSessionStats] = useState(() => {
+    const saved = sessionStorage.getItem('fs_sessionStats');
+    return saved ? JSON.parse(saved) : { questionCount: 0, startTime: null, duration: 0 };
+  });
+
+  const { start: startMusic, stop: stopMusic, musicEnabled, toggleMusicEnabled } = useAmbientMusic();
+  const { voiceEnabled, toggleVoiceEnabled } = useVoice();
   const [profiles, setProfiles] = useState(() => {
     const saved = sessionStorage.getItem('fs_profiles');
     return saved ? JSON.parse(saved) : null;
   });
+  const [archetype, setArchetype] = useState(() => {
+    const saved = sessionStorage.getItem('fs_archetype');
+    return saved ? JSON.parse(saved) : null;
+  });
+  // Alias for verification requirement
+  const archetypeData = archetype;
 
   // History states
   const [socratesHistory, setSocratesHistory] = useState(() => {
@@ -37,23 +54,29 @@ function App() {
     sessionStorage.setItem('fs_apiKey', apiKey);
     sessionStorage.setItem('fs_coreDesire', coreDesire);
     if (profiles) sessionStorage.setItem('fs_profiles', JSON.stringify(profiles));
+    if (archetype) sessionStorage.setItem('fs_archetype', JSON.stringify(archetype));
     sessionStorage.setItem('fs_socratesHistory', JSON.stringify(socratesHistory));
     sessionStorage.setItem('fs_personaActive', JSON.stringify(personaHistoryActive));
     sessionStorage.setItem('fs_personaPassive', JSON.stringify(personaHistoryPassive));
-  }, [step, apiKey, coreDesire, profiles, socratesHistory, personaHistoryActive, personaHistoryPassive]);
+    sessionStorage.setItem('fs_sessionStats', JSON.stringify(sessionStats));
+  }, [step, apiKey, coreDesire, profiles, archetype, socratesHistory, personaHistoryActive, personaHistoryPassive, sessionStats]);
 
   const handleAcknowledge = () => {
+    startMusic();
     setStep('onboarding');
   };
 
   const handleStart = (key) => {
     setApiKey(key);
+    setSessionStats(prev => ({ ...prev, startTime: Date.now() }));
     setStep('chat');
   };
 
   const handleReveal = (desire, history) => {
     setCoreDesire(desire);
     setSocratesHistory(history);
+    const duration = Math.round((Date.now() - sessionStats.startTime) / 60000);
+    setSessionStats(prev => ({ ...prev, duration }));
     setStep('reveal');
   };
 
@@ -71,18 +94,41 @@ function App() {
   };
 
   const handleReset = () => {
+    stopMusic();
+    clearSessions();
     sessionStorage.clear();
     window.location.reload();
   };
 
   return (
     <>
-      {step === 'disclaimer' && <DisclaimerScreen onAcknowledge={handleAcknowledge} />}
-      {step === 'onboarding' && <ApiKeyOnboarding onStart={handleStart} />}
+      {step === 'disclaimer' && (
+        <DisclaimerScreen 
+          onAcknowledge={handleAcknowledge} 
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
+        />
+      )}
+      {step === 'onboarding' && (
+        <ApiKeyOnboarding 
+          onStart={handleStart} 
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
+        />
+      )}
       {step === 'chat' && (
         <ChatInterface 
           apiKey={apiKey} 
-          onReveal={handleReveal} 
+          onReveal={handleReveal}
+          onQuestionCountUpdate={(count) => setSessionStats(prev => ({ ...prev, questionCount: count }))}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
         />
       )}
       {step === 'reveal' && (
@@ -90,6 +136,10 @@ function App() {
           coreDesire={coreDesire} 
           onProceedStep2={handleProceedToStep2}
           onProceedStep3={handleSkipToPersonaChat} 
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
         />
       )}
       {step === 'profiles' && (
@@ -97,6 +147,10 @@ function App() {
           apiKey={apiKey}
           coreDesire={coreDesire}
           onProceedStep3={handleProceedToStep3}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
         />
       )}
       {step === 'personaChat' && (
@@ -107,6 +161,10 @@ function App() {
           setProfiles={setProfiles}
           personaHistoryActive={personaHistoryActive}
           personaHistoryPassive={personaHistoryPassive}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
           onHistoryUpdate={(type, history) => {
             if (type === 'active') setPersonaHistoryActive(history);
             else setPersonaHistoryPassive(history);
@@ -119,6 +177,14 @@ function App() {
           apiKey={apiKey}
           coreDesire={coreDesire}
           history={socratesHistory}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
+          onArchetypeGenerated={(data) => {
+            setArchetype(data);
+          }}
+          onEmotionAnalysed={(data) => setEmotionalArc(data)}
           onProceed={() => setStep('letter')}
         />
       )}
@@ -131,7 +197,30 @@ function App() {
           socratesHistory={socratesHistory}
           personaHistoryActive={personaHistoryActive}
           personaHistoryPassive={personaHistoryPassive}
-          onProceedToReview={() => setStep('review')}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
+          onProceedToReview={() => setStep('summary')}
+        />
+      )}
+      {step === 'summary' && (
+        <SummaryGallery
+          coreDesire={coreDesire}
+          archetype={archetype}
+          profiles={profiles}
+          letters={{ 
+            active: sessionStorage.getItem('fs_letterActive'), 
+            passive: sessionStorage.getItem('fs_letterPassive') 
+          }}
+          emotionalArc={emotionalArc}
+          history={socratesHistory}
+          sessionStats={sessionStats}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
+          onProceed={() => setStep('review')}
         />
       )}
       {step === 'review' && (
@@ -140,7 +229,18 @@ function App() {
             active: sessionStorage.getItem('fs_letterActive'), 
             passive: sessionStorage.getItem('fs_letterPassive') 
           }}
+          coreDesire={coreDesire}
+          archetype={archetype}
+          profiles={profiles}
+          history={socratesHistory}
+          apiKey={apiKey}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
           onReset={handleReset}
+          sessionStats={sessionStats}
+          emotionalArc={emotionalArc}
         />
       )}
     </>

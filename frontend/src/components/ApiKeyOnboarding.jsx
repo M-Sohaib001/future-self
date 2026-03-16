@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
+import { useVoice } from '../hooks/useVoice';
 
-export default function ApiKeyOnboarding({ onStart }) {
+export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [apiKey, setApiKey] = useState('');
   const [showGuide, setShowGuide] = useState(false);
 
@@ -17,6 +18,24 @@ export default function ApiKeyOnboarding({ onStart }) {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <BackgroundEffects />
+      
+      {/* Fixed top-right controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
       
       {/* Dynamic Ambient Breathing Animation */}
       <motion.div 

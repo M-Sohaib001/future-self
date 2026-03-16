@@ -12,6 +12,7 @@ import html2canvas from 'html2canvas';
  */
 const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareTitle = "Future Self" }) => {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [copyLabel, setCopyLabel] = useState('Copy Text');
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
@@ -39,9 +40,12 @@ const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareT
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
-      alert('Copied to clipboard');
+      setCopyLabel('Copied ✓');
+      setTimeout(() => setCopyLabel('Copy Text'), 2000);
     } catch (err) {
       console.error('Failed to copy state:', err);
+      setCopyLabel('Failed');
+      setTimeout(() => setCopyLabel('Copy Text'), 2000);
     }
   };
 
@@ -78,7 +82,7 @@ const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareT
         onClick={handleCopy}
         className="px-6 py-2 border border-zinc-800 hover:bg-zinc-800/40 text-zinc-400 text-[10px] uppercase tracking-[0.3em] transition-all bg-black/40 backdrop-blur-sm"
       >
-        Copy Text
+        {copyLabel}
       </button>
 
       <button

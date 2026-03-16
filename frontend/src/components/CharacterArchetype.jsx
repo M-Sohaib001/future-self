@@ -3,8 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 import ShareableCard from './ShareableCard';
+import { saveSession } from '../utils/sessionMemory';
 
-export default function CharacterArchetype({ apiKey, coreDesire, history, onProceed }) {
+export default function CharacterArchetype({ 
+  apiKey, 
+  coreDesire, 
+  history, 
+  onProceed, 
+  onArchetypeGenerated, 
+  onEmotionAnalysed,
+  musicEnabled, 
+  toggleMusicEnabled,
+  voiceEnabled,
+  toggleVoiceEnabled
+}) {
   const [archetype, setArchetype] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -15,9 +27,7 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
   const { 
     speak, 
     stopSpeaking, 
-    isSpeaking, 
-    voiceEnabled, 
-    toggleVoiceEnabled 
+    isSpeaking 
   } = useVoice();
 
   useEffect(() => {
@@ -32,10 +42,23 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
         if (response.ok) {
           const data = await response.json();
           setArchetype(data);
+          if (onArchetypeGenerated) onArchetypeGenerated(data);
           
           if (voiceEnabled) {
             speak(`Your journey mirrors that of ${data.character}. ${data.comparison}`, { rate: 0.82, pitch: 0.88, delay: 1000 });
           }
+
+          // Trigger analytics & stats in parallel
+          fetch(`${API_BASE}/api/analyse-emotions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey, history })
+          }).then(res => res.json()).then(result => {
+            if (onEmotionAnalysed) onEmotionAnalysed(result);
+            saveSession({ coreDesire, archetype: data, emotionalSummary: result.emotionalSummary });
+          }).catch(console.error);
+
+          fetch(`${API_BASE}/api/increment-stats`, { method: 'POST' }).catch(console.error);
         } else {
           throw new Error('The mirror is clouded.');
         }
@@ -130,14 +153,23 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
     <div className="min-h-screen bg-[#050508] text-white font-serif flex flex-col items-center justify-center p-4 lg:p-12 relative overflow-hidden">
       <BackgroundEffects />
       
-      {/* Voice controls */}
-      <button
-        onClick={toggleVoiceEnabled}
-        className="absolute top-6 right-6 z-50 text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-      >
-        <span>{voiceEnabled ? '⬤' : '○'}</span>
-        <span>Voice</span>
-      </button>
+      {/* Fixed top-right controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
 
       {isSpeaking && (
         <button
@@ -212,18 +244,18 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
              >
                Psychological Mirror
              </motion.p>
-             <motion.h2 
-               initial={{ opacity: 0, x: -20 }}
-               animate={{ opacity: 1, x: 0 }}
-               transition={{ delay: 1.2, duration: 1 }}
-               className={`text-4xl md:text-5xl ${fontClass}`}
-               style={{ 
-                 color: palette.primary,
-                 textShadow: `0 0 20px ${palette.primary}66` // ~40% opacity text shadow
-               }}
-             >
-               {archetype.character}
-             </motion.h2>
+              <motion.h2 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.2, duration: 1 }}
+                className={`text-4xl md:text-5xl ${getFontClass(archetype.font)}`}
+                style={{ 
+                  color: palette.primary,
+                  textShadow: `0 0 20px ${palette.primary}66`
+                }}
+              >
+                {archetype.character}
+              </motion.h2>
           </div>
         </div>
 
@@ -249,31 +281,31 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
                 </section>
                 <section>
                    <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/20 mb-2 font-sans">Core Trait</h3>
-                   <p className={`text-xs ${fontClass}`} style={{ color: palette.accent }}>{archetype.trait}</p>
+                   <p className={`text-xs ${getFontClass(archetype.font)}`} style={{ color: palette.accent }}>{archetype.trait}</p>
                 </section>
               </div>
 
               {archetype.divergence && (
-                <section className="pt-6">
-                   <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/20 mb-2 font-sans">Their Warning</h3>
-                   <p className="text-sm italic leading-relaxed" style={{ color: `${palette.primary}cc` }}>
-                     {archetype.divergence}
-                   </p>
-                </section>
+                 <section className="pt-6">
+                    <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/20 mb-2 font-sans">Their Warning</h3>
+                    <p className="text-sm italic leading-relaxed" style={{ color: `${palette.primary}cc` }}>
+                      {archetype.divergence}
+                    </p>
+                 </section>
               )}
            </div>
 
            <div className="absolute top-10 right-10">
-              <span 
-                className="px-4 py-1 border rounded-full text-[8px] uppercase tracking-[0.4em]"
-                style={{ 
-                  borderColor: palette.accent, 
-                  backgroundColor: `${palette.accent}11`, 
-                  color: palette.accent 
-                }}
-              >
-                {archetype.mood}
-              </span>
+               <span 
+                 className="px-4 py-1 border rounded-full text-[8px] uppercase tracking-[0.4em]"
+                 style={{ 
+                   borderColor: palette.accent, 
+                   backgroundColor: `${palette.accent}22`, 
+                   color: palette.accent 
+                 }}
+               >
+                 {archetype.mood}
+               </span>
            </div>
         </div>
 
@@ -299,7 +331,7 @@ export default function CharacterArchetype({ apiKey, coreDesire, history, onProc
         />
 
         <button
-          onClick={onProceed}
+          onClick={() => onProceed(archetype)}
           className="group relative px-16 py-4 border border-white/10 overflow-hidden transition-all duration-500 hover:border-white/30"
         >
           <div 

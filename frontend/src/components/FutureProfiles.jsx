@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
+import { useVoice } from '../hooks/useVoice';
 
-export default function FutureProfiles({ apiKey, coreDesire, onProceedStep3 }) {
+export default function FutureProfiles({ apiKey, coreDesire, onProceedStep3, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [profiles, setProfiles] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const { speak, stopSpeaking, isSpeaking } = useVoice();
 
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
@@ -46,6 +48,32 @@ export default function FutureProfiles({ apiKey, coreDesire, onProceedStep3 }) {
   return (
     <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 lg:p-12 relative overflow-hidden">
       <BackgroundEffects />
+      {/* Fixed top-right controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
+
+      {isSpeaking && (
+        <button
+          onClick={stopSpeaking}
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all font-sans"
+        >
+          ◼ Stop
+        </button>
+      )}
 
       <div className="relative z-10 w-full max-w-6xl mt-12 mb-24">
         {isLoading && (

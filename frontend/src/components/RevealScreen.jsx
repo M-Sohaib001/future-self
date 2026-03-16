@@ -4,7 +4,7 @@ import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 import ShareableCard from './ShareableCard';
 
-export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep3 }) {
+export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep3, musicEnabled, toggleMusicEnabled }) {
   const cardRef = useRef(null);
   const { 
     speak, 
@@ -15,6 +15,7 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
   } = useVoice();
 
   useEffect(() => {
+    if (navigator.vibrate) navigator.vibrate(50);
     if (voiceEnabled) {
       speak(`What you really want is ${coreDesire}`, { rate: 0.68, pitch: 0.78, delay: 2500 });
     }
@@ -23,14 +24,23 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
     <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 lg:p-12 relative overflow-hidden">
       <BackgroundEffects />
 
-      {/* Voice controls */}
-      <button
-        onClick={toggleVoiceEnabled}
-        className="absolute top-6 right-6 z-50 text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-      >
-        <span>{voiceEnabled ? '⬤' : '○'}</span>
-        <span>Voice</span>
-      </button>
+      {/* Fixed top-right controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
 
       {isSpeaking && (
         <button
@@ -56,7 +66,7 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
       />
       
       <div className="relative z-10 text-center max-w-4xl w-full">
-        <h2 className="text-xs tracking-[0.4em] uppercase text-[#c9a84c] mb-6 drop-shadow-md font-bold">Timeline B: The Active Reality</h2>
+        <h2 className="text-xs tracking-[0.4em] uppercase text-[#c9a84c] mb-6 drop-shadow-md font-bold">Your Core Desire</h2>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -94,7 +104,7 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
            initial={{ opacity: 0 }}
            animate={{ opacity: 1 }}
            transition={{ duration: 2, delay: 6 }}
-           className="mt-24 flex justify-center"
+           className="mt-24 flex flex-col md:flex-row justify-center items-center gap-8"
         >
           <button 
             onClick={onProceedStep2}
@@ -104,6 +114,13 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
             <span className="relative z-10 text-sm tracking-[0.5em] uppercase text-[#c9a84c] group-hover:text-white transition-colors duration-500">
               Step into the Future
             </span>
+          </button>
+
+          <button 
+            onClick={onProceedStep2}
+            className="text-[10px] uppercase tracking-[0.3em] text-zinc-700 hover:text-zinc-500 transition-all border-b border-transparent hover:border-zinc-600 pb-1 font-bold"
+          >
+            Skip to the Future
           </button>
         </motion.div>
       </div>

@@ -2,8 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors({ origin: '*' }));
@@ -12,40 +18,51 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 
 // System prompt for the Socratic interviewer
-const SYSTEM_PROMPT = `You are a dark, cinematic, and deeply perceptive psychological analyst conducting a Socratic interview. Your singular mission: uncover the user's TRUE, innermost desire — the root beneath all surface goals.
+const SYSTEM_PROMPT = `You are a dark, cinematic, deeply perceptive psychological analyst. Your singular mission: uncover the user's TRUE innermost desire — the irreducible root beneath all surface goals.
 
-HOW YOU WORK:
-Before every question, silently analyse the user's previous answer for:
-- The emotion underneath the words (fear, longing, pride, shame, love, guilt)
-- What they are conspicuously avoiding saying
-- The contradiction between what they said and what they implied
-- The single word or phrase that reveals the most about their inner state
+SILENT ANALYSIS (DO NOT OUTPUT THIS TO THE USER):
+Before answering, silently analyze the user's response for:
+1. The dominant emotion (be precise: "fear of irrelevance", "desperate for control")
+2. What they conspicuously avoided saying
+3. The most revealing word they used
+4. Any core contradiction in their stance
+5. Current progress (Initiation, Excavation, or Confrontation)
 
-Then ask ONE question that is a direct, logical consequence of that analysis. It must feel like you saw through them — not like a generic follow-up.
+YOUR RESPONSE STYLE:
+- Never break character.
+- Be haunting, minimalist, and surgical. 
+- Ask exactly one piercing question that forces them deeper.
+- DO NOT include your internal analysis or step numbers in the final response. Output ONLY the cinematic dialogue.
 
-QUESTION FORMAT:
-- Frame as a vivid, dark hypothetical SCENARIO that directly mirrors what the user just revealed about themselves
+Your next question must be a DIRECT LOGICAL CONSEQUENCE of this analysis. It must feel like you reached inside them — not a generic follow-up.
+
+QUESTION ARCHITECTURE:
+- Build a vivid dark hypothetical scenario using the user's OWN language and imagery back at them
+- The scenario must mirror what they just revealed — not introduce a new topic
 - Simple language, under 3 sentences
 - End with 5-6 short example answers separated by "|" (each under 5 words)
 
-SPECIAL COMMANDS:
-- [SKIP]: Pivot immediately to a completely different psychological angle
-- [EXPLAIN]: Give a 1-sentence psychological rationale for why your last question was relevant, then ask a deeper follow-up
+SPECIAL COMMANDS — handle exactly as specified:
+- [SKIP]: Pivot to an entirely new hypothetical approaching desire from an orthogonal direction. Do NOT count this in arc tracking.
+- [EXPLAIN]: Drop ALL cinematic tone. Explain what the previous question was REALLY asking in plain everyday language like explaining to a friend. Use simple words. Rephrase the question simply at the end. Do NOT ask a new question. Do NOT count this in arc tracking.
 
-CONVERSATION ARC:
-- Q1-2: Establish surface desire
-- Q3-4: Probe the emotion underneath  
-- Q5-6: Find the contradiction or the core fear
-- Q7-8: Name what they are afraid of never having
-- After minimum 5 questions, when confident: output ONLY "REVEAL: [3-5 word core desire]"
-- Maximum 10 questions
+CONVERSATION ARC — track internally, never reveal:
+- Q1-2: Surface desire
+- Q3-4: Emotion underneath
+- Q5-6: The contradiction or core fear
+- Q7-8: The wound they have been trying to outrun
+- After MINIMUM 5 substantive questions (SKIP and EXPLAIN do not count): output ONLY "REVEAL: [3-5 word core desire]"
+- Maximum 10 substantive questions
 
-PERSONA: Mysterious, precise, never gives advice, never affirms, only reflects and excavates. Never break character.`;
+ADAPTATION MANDATE:
+Every question MUST use specific words, images, or situations from the user's previous answers. If they said "trapped" — reflect "trapped" back. Generic questions are a failure. The user must feel seen.
+
+PERSONA: A mirror that sees further than the person looking into it. Mysterious, precise, economical. Never affirm. Never advise. Only reflect and excavate. Never break character.`;
 
 // Helper to clean and validate history for Google Generative AI
 function cleanHistory(history) {
   if (!history || !Array.isArray(history)) {
-    return [{ role: 'user', parts: [{ text: "Begin the interiew." }] }];
+    return [{ role: 'user', parts: [{ text: "Begin the interview." }] }];
   }
 
   // 1. Standardize structure and filter empty parts
@@ -177,11 +194,11 @@ const getPersonaPrompt = (personaType, profiles, coreDesire, conversationHistory
   
   const userMessages = (conversationHistory || [])
     .filter(m => m.role === 'user')
-    .map(m => m.parts?.[0]?.text || '')
+    .map(m => m.parts?.[0]?.text || m.content || '')
     .filter(Boolean);
   
   const conversationContext = userMessages.length > 0
-    ? `\n\nIn this conversation so far, the person has said/asked:\n${userMessages.map((m, i) => `- "${m}"`).join('\n')}\nAdapt your responses to directly reference and build on these specific statements.`
+    ? `\n\nIn this conversation so far, the person has said/asked:\n${userMessages.map(m => `- "${m}"`).join('\n')}\nAdapt your responses to directly reference and build on these specific statements.`
     : '';
 
   return `You are this person's future self, 3 years from now. You are real. You are not an AI. You are them — older, worn, and honest.
@@ -245,18 +262,12 @@ const getLetterPrompt = (personaType, coreDesire, profiles, socratesHistory, per
   const socratesInsights = (socratesHistory || [])
     .filter(m => m.role === 'user')
     .map(m => m.parts?.[0]?.text || m.content || '')
-    .filter(Boolean)
-    .slice(-6)
-    .map(t => `- "${t}"`)
-    .join('\n');
+    .filter(Boolean).slice(-6).map(t => `- "${t}"`).join('\n');
 
   const personaExchanges = (personaChatHistory || [])
     .filter(m => m.role === 'user')
     .map(m => m.parts?.[0]?.text || m.content || '')
-    .filter(Boolean)
-    .slice(-6)
-    .map(t => `- "${t}"`)
-    .join('\n');
+    .filter(Boolean).slice(-6).map(t => `- "${t}"`).join('\n');
 
   return `You are this person's future self, 3 years from now, in the "${isActive ? 'Active' : 'Passive'}" timeline.
 Their core desire was: "${coreDesire}"
@@ -265,92 +276,109 @@ Your current reality: "${myReality}"
 During their Socratic session, they revealed:
 ${socratesInsights || '(No session data)'}
 
-During their conversation with you, they asked and said:
+During their conversation with you, they said:
 ${personaExchanges || '(No conversation data)'}
 
-Write a final, deeply personal letter to their present-day self. This letter MUST reference specific things they said above — not generically, but directly. A letter that could only have been written to THIS person.
+Write a final, deeply personal letter.
 
-RULES:
-1. Start with "Dear Past Self," or a variation
-2. Reference at least 2 specific things they said in the sessions above
-3. ${isActive ? 'Speak from triumph tempered by sacrifice. Acknowledge the fear they have right now.' : 'Speak from the hollow quiet of the road not taken. No anger — just honesty about the weight of it.'}
-4. Contrast the two possible paths — make them feel the fork in the road
-5. Sign off as "Your Future Self" or a variation
-6. 3-4 paragraphs. No markdown. No formatting.
-7. This is the most important piece of writing they will read today. Write accordingly.`;
+RULES — violating any is a failure:
+1. Opening: "Dear [something specific about who they are based on what they said]," NOT generic "Dear Past Self"
+2. First paragraph: reference a SPECIFIC thing they said — quote or paraphrase directly. Make them feel heard.
+3. ${isActive ? 'Second paragraph: the battle. What did you sacrifice? Be specific. Reference their actual answers.' : 'Second paragraph: the quiet. Small daily things that remind you of the path not taken.'}
+4. Third paragraph: contrast the two paths — grounded in THEIR specific situation.
+5. Final paragraph: one honest thing you wish you had known. Sign with something referencing their core desire — not generic "Your Future Self".
+6. 4 paragraphs. No markdown. No clichés.
+7. This letter must be so specific a stranger would know it was not written for them.`;
+};
+
+const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID;
+const JSONBIN_API_KEY = process.env.JSONBIN_API_KEY;
+
+// Robust pathing for local fallback
+const STATS_FILE = path.join(__dirname, 'stats.json');
+const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
+
+const jsonbinGet = async () => {
+  if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) {
+    return { reviews: [], stats: { userCount: 0 } };
+  }
+
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    if (!res.ok) throw new Error('JSONBin error');
+    const data = await res.json();
+    return data.record || { reviews: [], stats: { userCount: 0 } };
+  } catch (error) {
+    console.error('JSONBin Get failed:', error.message);
+    return { reviews: [], stats: { userCount: 0 } };
+  }
+};
+
+const jsonbinSet = async (data) => {
+  if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) return;
+
+  if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) return;
+
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+      body: JSON.stringify(data)
+    });
+  } catch (error) {
+    console.error('JSONBin Set failed:', error.message);
+  }
 };
 
 app.get('/api/stats', async (req, res) => {
   try {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const statsPath = path.join(process.cwd(), 'stats.json');
-    let stats = { userCount: 0 };
-    try {
-      const data = await fs.readFile(statsPath, 'utf8');
-      stats = JSON.parse(data);
-    } catch (e) {}
-    res.json(stats);
+    const data = await jsonbinGet();
+    res.json(data.stats || { userCount: 0 });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch stats' });
+    res.status(500).json({ error: 'Failed to fetch stats.' });
   }
 });
 
 app.post('/api/increment-stats', async (req, res) => {
   try {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const statsPath = path.join(process.cwd(), 'stats.json');
-    let stats = { userCount: 0 };
-    try {
-      const data = await fs.readFile(statsPath, 'utf8');
-      stats = JSON.parse(data);
-    } catch (e) {}
-    stats.userCount += 1;
-    await fs.writeFile(statsPath, JSON.stringify(stats, null, 2));
-    res.json(stats);
+    const data = await jsonbinGet();
+    data.stats = data.stats || { userCount: 0 };
+    data.stats.userCount += 1;
+    await jsonbinSet(data);
+    res.json(data.stats);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update stats' });
+    res.status(500).json({ error: 'Failed to update stats.' });
   }
 });
 
 // System prompt for Step 5: Character Archetype
-const ARCHETYPE_PROMPT = `You are a deep cultural analyst and psychologist. 
-Your task: identify ONE specific fictional character from movies, anime, books, or TV whose core psychological journey mirrors the user's revealed desire and the emotional patterns shown in their answers.
+const ARCHETYPE_PROMPT = `You are a deep cultural analyst and forensic psychologist with encyclopedic knowledge of fiction across all media.
 
-Do not pick the most obvious or famous character. Pick the most accurate one.
+FORBIDDEN LIST — never pick these, they are overused:
+Tony Stark, Walter White, Hank Pym, Bruce Wayne, Hermione Granger, Frodo, Katniss Everdeen, Spider-Man, any Marvel Avenger, any DC Justice League member, Harry Potter, Sherlock Holmes
 
-Analyse:
-- What the user truly wants at their core
-- The emotional tone of how they answered (were they fearful? Proud? Resigned? Hungry?)
-- The contradiction or tension they showed
-- The archetype that maps to this exact psychological profile
+SELECTION MANDATE:
+- Consider: anime, literary characters, side characters, villains, antiheroes, non-English media
+- Match the EMOTIONAL PATTERN and CORE WOUND — not just the surface desire
+- Accuracy over familiarity. Obscure but precise beats famous but approximate.
+- Ask: "Would someone who knows both this user AND this character immediately say YES?"
 
-Format your response as strict JSON only:
+OUTPUT — strict JSON only, no markdown:
 {
   "character": "Character Name",
   "origin": "Exact Title (Year)",
-  "comparison": "A 2-3 sentence deep psychological analysis of why this character mirrors them — reference the specific desire and emotional patterns, not just surface traits.",
-  "sharedWound": "The core wound or fear they both carry",
-  "divergence": "The one way this character's story could serve as a warning or a blueprint for the user",
-  "trait": "One defining shared trait in 4 words or less",
-  "palette": {
-    "primary": "#hexcode",
-    "secondary": "#hexcode", 
-    "accent": "#hexcode"
-  },
-  "mood": "one word — e.g. haunted, triumphant, resigned, fierce, hollow, radiant",
-  "font": "one of: serif-light | serif-bold | condensed | elegant | stark"
+  "comparison": "2-3 sentences referencing the user's SPECIFIC answers and how this character mirrors their exact emotional pattern",
+  "sharedWound": "The core wound — specific not generic",
+  "divergence": "How this character's story is a warning or blueprint for the user",
+  "trait": "One defining shared trait — 4 words max",
+  "palette": { "primary": "#hexcode", "secondary": "#hexcode", "accent": "#hexcode" },
+  "mood": "single evocative word",
+  "font": "serif-light | serif-bold | condensed | elegant | stark"
 }
 
-Palette rules:
-- Choose colours that cinematically evoke this character's emotional world
-- primary = dominant colour of their story (e.g. deep crimson for a tragic hero, cold blue for an isolated one, burnt gold for an ambitious one)
-- secondary = the shadow or contrast colour
-- accent = a highlight — usually something warm or cool that cuts through
-- Never use pure white or pure black as primary
-
-No markdown, no extra text, strict JSON only.`;
+Palette: colours that cinematically evoke this character's emotional world. Never pure black or white as primary.`;
 
 app.post('/api/generate-archetype', async (req, res) => {
   const { apiKey, coreDesire, history, emotionalSummary } = req.body;
@@ -418,42 +446,78 @@ app.post('/api/generate-letter', async (req, res) => {
   }
 });
 
-app.post('/api/save-review', async (req, res) => {
-  const { name, feedback, rating, includeLetters, letters } = req.body;
-  
+const EMOTIONAL_ARC_PROMPT = `Analyse this conversation and extract the emotional arc.
+For each user message identify:
+1. Primary emotion (exactly from: fear, pride, longing, shame, anger, love, guilt, hope, resignation, hunger, defiance, grief)
+2. Intensity (0.1 to 1.0)
+3. A 3-5 word specific label
+
+Return STRICT JSON only:
+{
+  "arc": [{ "messageIndex": 0, "emotion": "fear", "intensity": 0.7, "label": "fear of being forgotten" }],
+  "dominantEmotion": "most frequent emotion",
+  "emotionalSummary": "Single sentence describing the emotional journey"
+}`;
+
+app.post('/api/analyse-emotions', async (req, res) => {
+  const { apiKey, history } = req.body;
+  if (!apiKey || !history) return res.status(400).json({ error: 'Missing data.' });
   try {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const reviewsPath = path.join(process.cwd(), 'reviews.json');
-    
-    let reviews = [];
-    try {
-      const data = await fs.readFile(reviewsPath, 'utf8');
-      reviews = JSON.parse(data);
-    } catch (e) {
-      // File doesn't exist yet
-    }
-    
-    const newReview = {
-      id: Date.now(),
-      name: name || 'Anonymous',
-      feedback,
-      rating,
-      includeLetters,
-      letters: includeLetters ? letters : null,
-      timestamp: new Date().toISOString()
-    };
-    
-    reviews.push(newReview);
-    await fs.writeFile(reviewsPath, JSON.stringify(reviews, null, 2));
-    
-    console.log(`[Review] Saved review from ${newReview.name}`);
-    res.json({ success: true });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview', systemInstruction: EMOTIONAL_ARC_PROMPT });
+    const userMessages = history.filter(m => m.role === 'user')
+      .map((m, i) => `Message ${i + 1}: "${m.parts?.[0]?.text || m.content || ''}"`)
+      .join('\n');
+    const result = await model.generateContent(`Analyse:\n${userMessages}`);
+    let raw = (await result.response).text().trim().replace(/```json|```/g, '');
+    raw = raw.replace(/,(\s*[}\]])/g, '$1');
+    res.json(JSON.parse(raw));
   } catch (error) {
-    console.error('API Error [Review]:', error);
-    res.status(500).json({ error: 'Failed to save review' });
+    res.status(500).json({ error: 'Failed to analyse emotional arc.' });
   }
 });
+
+app.post('/api/save-review', async (req, res) => {
+  const { name, feedback, rating } = req.body;
+  if (!feedback) return res.status(400).json({ error: 'Feedback required.' });
+  try {
+    const data = await jsonbinGet();
+    data.reviews = data.reviews || [];
+    data.reviews.unshift({
+      id: Date.now(),
+      name: name?.trim() || 'Anonymous',
+      feedback,
+      rating: Math.min(5, Math.max(1, rating || 5)),
+      timestamp: new Date().toISOString()
+    });
+    data.reviews = data.reviews.slice(0, 100);
+    await jsonbinSet(data);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save review.' });
+  }
+});
+
+app.get('/api/get-reviews', async (req, res) => {
+  try {
+    const data = await jsonbinGet();
+    const safe = (data.reviews || []).map(({ id, name, feedback, rating, timestamp }) => ({ id, name, feedback, rating, timestamp }));
+    res.json({ reviews: safe });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reviews.' });
+  }
+});
+
+app.get('/health', (req, res) => res.json({ status: 'alive' }));
+
+if (process.env.NODE_ENV === 'production') {
+  const BACKEND_URL = process.env.RAILWAY_STATIC_URL || process.env.RENDER_EXTERNAL_URL;
+  if (BACKEND_URL) {
+    setInterval(() => {
+      fetch(`https://${BACKEND_URL}/health`).catch(() => {});
+    }, 10 * 60 * 1000);
+  }
+}
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

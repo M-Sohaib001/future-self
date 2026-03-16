@@ -11,7 +11,9 @@ export default function PersonaChat({
   personaHistoryActive,
   personaHistoryPassive,
   onHistoryUpdate,
-  onProceedStep4 
+  onProceedStep4,
+  musicEnabled,
+  toggleMusicEnabled
 }) {
   const [profiles, setProfiles] = useState(initialProfiles);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
@@ -192,14 +194,23 @@ export default function PersonaChat({
       )}
       <BackgroundEffects />
       
-      {/* Voice controls */}
-      <button
-        onClick={toggleVoiceEnabled}
-        className="absolute top-6 right-6 z-50 text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-      >
-        <span>{voiceEnabled ? '⬤' : '○'}</span>
-        <span>Voice</span>
-      </button>
+      {/* Fixed top-right controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
 
       {isSpeaking && (
         <button
@@ -231,14 +242,14 @@ export default function PersonaChat({
         <p className="text-[10px] tracking-[0.5em] uppercase text-[#c9a84c]/60 mb-6 font-sans font-bold">Speak with your Futures</p>
         <div className="flex space-x-6 md:space-x-12 border-b border-[#c9a84c]/20 pb-4">
           <button
-            onClick={() => setActiveTab('passive')}
+            onClick={() => { setActiveTab('passive'); stopSpeaking(); }}
             className={`text-xs md:text-sm tracking-[0.4em] uppercase transition-all duration-700 ${activeTab === 'passive' ? 'text-zinc-200 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-zinc-600 hover:text-zinc-400'}`}
           >
             Timeline A (Passive)
           </button>
           <span className="text-[#c9a84c]/30">|</span>
           <button
-            onClick={() => setActiveTab('active')}
+            onClick={() => { setActiveTab('active'); stopSpeaking(); }}
             className={`text-xs md:text-sm tracking-[0.4em] uppercase transition-all duration-700 ${activeTab === 'active' ? 'text-[#c9a84c] drop-shadow-[0_0_20px_rgba(201,168,76,0.5)]' : 'text-[#c9a84c]/40 hover:text-[#c9a84c]/70'}`}
           >
             Timeline B (Active)

@@ -3,21 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 
-export default function ChatInterface({ apiKey, onReveal }) {
+export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [substantiveCounter, setSubstantiveCounter] = useState(0);
+  const [typewriterIndex, setTypewriterIndex] = useState(-1);
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const haptic = (v = 30) => { if (navigator.vibrate) navigator.vibrate(v); };
   const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
   const { 
     speak, 
     stopSpeaking, 
     isSpeaking, 
-    voiceEnabled, 
-    toggleVoiceEnabled, 
     isListening, 
     startListening, 
     stopListening 
@@ -61,6 +62,17 @@ export default function ChatInterface({ apiKey, onReveal }) {
     setError('');
 
     try {
+      if (!isInitial) {
+        const lower = currentInput.toLowerCase();
+        if (!lower.includes('[skip]') && !lower.includes('[explain]')) {
+          setSubstantiveCounter(prev => {
+            const next = prev + 1;
+            if (onQuestionCountUpdate) onQuestionCountUpdate(next);
+            return next;
+          });
+        }
+      }
+
       const historyForApi = messages.map(m => ({
         role: m.role,
         parts: [{ text: m.content }]
@@ -73,62 +85,39 @@ export default function ChatInterface({ apiKey, onReveal }) {
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey,
-          history: historyForApi
-        })
+        body: JSON.stringify({ apiKey, history: historyForApi })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        let errorMessage = errorData.error?.message || errorData.error || 'Failed to communicate with AI';
-        if (errorData.details) {
-          try {
-            const detailsObj = JSON.parse(errorData.details);
-            errorMessage = detailsObj.error?.message || errorMessage;
-          } catch (e) {
-            errorMessage = `${errorMessage}: ${errorData.details}`;
-          }
-        }
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || 'Connection failed');
       }
 
       const data = await response.json();
       const aiResponse = data.text;
 
       if (aiResponse.includes('REVEAL:')) {
+        haptic([200, 100, 200]);
         const match = aiResponse.match(/REVEAL:\s*(.*)/);
         const coreDesire = match ? match[1].trim() : 'Unknown';
-        const fullHistory = [...messages, { role: 'model', content: aiResponse }].map(m => ({
-          role: m.role,
-          parts: [{ text: m.content }]
-        }));
-
-        if (voiceEnabled) {
-          speak(`What you really want... is ${coreDesire}`, { rate: 0.7, pitch: 0.8, delay: 2000 });
-        }
-        onReveal(coreDesire, fullHistory);
+        if (voiceEnabled) speak(`What you really want... is ${coreDesire}`, { rate: 0.7, pitch: 0.8 });
+        onReveal(coreDesire, [...messages, { role: 'model', content: aiResponse }]);
       } else {
         const messageParts = aiResponse.split('|');
         let mainText = aiResponse;
         let options = [];
 
         if (messageParts.length > 1) {
-            const lastNewLineOrPunctuation = aiResponse.lastIndexOf('?', aiResponse.lastIndexOf('|'));
-            if (lastNewLineOrPunctuation !== -1) {
-                mainText = aiResponse.slice(0, lastNewLineOrPunctuation + 1).trim();
-                const optionsString = aiResponse.slice(lastNewLineOrPunctuation + 1).trim();
-                options = optionsString.split('|').map(opt => opt.replace(/^[^a-zA-Z0-9]+/, '').trim()).filter(Boolean);
-            } else {
-                 mainText = messageParts[0].trim();
-                 options = messageParts.slice(1).map(opt => opt.trim());
-            }
+          const splitIndex = aiResponse.indexOf('?') !== -1 ? aiResponse.indexOf('?') + 1 : aiResponse.indexOf('.') + 1;
+          mainText = aiResponse.slice(0, splitIndex).trim();
+          options = aiResponse.slice(splitIndex).split('|').map(o => o.trim()).filter(Boolean);
         }
         
-        if (voiceEnabled) {
-          speak(mainText, { delay: 800 });
-        }
-        setMessages(prev => [...prev, { role: 'model', content: mainText, options }]);
+        const newMsgIdx = messages.length + (isInitial ? 0 : 1);
+        setMessages(prev => [...prev, { role: 'model', content: mainText, options, layer: substantiveCounter + (isInitial ? 1 : 0) }]);
+        setTypewriterIndex(newMsgIdx);
+        haptic();
+        if (voiceEnabled) speak(mainText, { delay: 800 });
       }
     } catch (err) {
       setError(err.message);
@@ -149,13 +138,22 @@ export default function ChatInterface({ apiKey, onReveal }) {
       <BackgroundEffects />
 
       {/* Voice controls */}
-      <button
-        onClick={toggleVoiceEnabled}
-        className="absolute top-6 right-6 z-50 text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-      >
-        <span>{voiceEnabled ? '⬤' : '○'}</span>
-        <span>Voice</span>
-      </button>
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button 
+          onClick={toggleMusicEnabled} 
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
+        >
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button
+          onClick={toggleVoiceEnabled}
+          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
+        >
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
 
       {isSpeaking && (
         <button
@@ -177,9 +175,8 @@ export default function ChatInterface({ apiKey, onReveal }) {
           <div className="max-w-[600px] mx-auto w-full">
             <AnimatePresence mode="popLayout">
               {messages.map((msg, idx) => {
-                const modelMessages = messages.slice(0, idx + 1).filter(m => m.role === 'model');
-                const questionNumber = modelMessages.length;
-                const counterLabel = questionNumber <= 1 ? 'The Excavation Begins' : `Layer ${questionNumber} — Unravelling`;
+                const isNewest = idx === typewriterIndex && msg.role === 'model';
+                const counterLabel = msg.layer === 1 ? 'The Excavation Begins' : `Layer ${msg.layer} — Unravelling`;
 
                 return (
                   <motion.div
@@ -217,9 +214,9 @@ export default function ChatInterface({ apiKey, onReveal }) {
                       <p className={`text-lg md:text-xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-wider font-light ${
                         msg.role === 'user' 
                           ? 'text-zinc-400 italic' 
-                          : 'text-[#c9a84c] drop-shadow-[0_0_20px_rgba(201,168,76,0.15)]'
+                          : 'text-[#c9a84c] font-serif drop-shadow-[0_0_20px_rgba(201,168,76,0.15)]'
                       }`}>
-                        {msg.content}
+                        {isNewest ? <TypewriterText text={msg.content} onComplete={() => setTypewriterIndex(-1)} onStart={() => haptic(30)} /> : msg.content}
                       </p>
                       
                       {msg.role === 'model' && msg.options && msg.options.length > 0 && idx === messages.length - 1 && !isLoading && (
@@ -313,7 +310,7 @@ export default function ChatInterface({ apiKey, onReveal }) {
                 disabled={isLoading || !!error || messages.length === 0}
                 className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10"
               >
-                Skip Scenario
+                Different Question
               </button>
               <button
                 type="button"
@@ -321,7 +318,7 @@ export default function ChatInterface({ apiKey, onReveal }) {
                 disabled={isLoading || !!error || messages.length === 0}
                 className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10"
               >
-                Why this?
+                Explain Simply
               </button>
             </div>
             
@@ -362,4 +359,21 @@ export default function ChatInterface({ apiKey, onReveal }) {
       </div>
     </div>
   );
+}
+function TypewriterText({ text, onComplete, onStart }) {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    if (onStart) onStart();
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayed(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) {
+        clearInterval(interval);
+        if (onComplete) onComplete();
+      }
+    }, 25);
+    return () => clearInterval(interval);
+  }, [text]);
+  return <>{displayed}</>;
 }

@@ -1,14 +1,15 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import BackgroundEffects from './BackgroundEffects';
-import { getLatestSession } from '../utils/sessionMemory';
+import { getLatestSession, clearSessions } from '../utils/sessionMemory';
 
 export default function DisclaimerScreen({ onAcknowledge, onViewWall, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [userCount, setUserCount] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const initializedRef = useRef(false);
   
-  const lastSession = getLatestSession();
+  const [sessionCleared, setSessionCleared] = useState(false);
+  const lastSession = sessionCleared ? null : getLatestSession();
   const daysSince = lastSession ? Math.floor((Date.now() - new Date(lastSession.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const isMonthlyReturn = lastSession && daysSince >= 30;
 
@@ -85,6 +86,16 @@ export default function DisclaimerScreen({ onAcknowledge, onViewWall, musicEnabl
             </button>
             <button onClick={() => setDismissed(true)} className="text-[10px] uppercase tracking-[0.3em] text-zinc-700 hover:text-zinc-500 transition-all border-b border-transparent hover:border-zinc-600 pb-1 font-bold">
               Continue Without Resetting
+            </button>
+            <button 
+              onClick={() => {
+                clearSessions();
+                sessionStorage.removeItem('fs_checkIn');
+                setSessionCleared(true);
+              }} 
+              className="mt-8 text-[9px] uppercase tracking-[0.3em] text-red-900/40 hover:text-red-800 transition-all"
+            >
+              That was not me (Clear memory)
             </button>
           </div>
         </motion.div>

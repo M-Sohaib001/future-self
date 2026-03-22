@@ -30,6 +30,8 @@ export default function CharacterArchetype({
     isSpeaking 
   } = useVoice();
 
+  const haptic = (v = [30]) => { if (navigator.vibrate) navigator.vibrate(v); };
+
   useEffect(() => {
     const fetchArchetype = async () => {
       try {
@@ -43,6 +45,7 @@ export default function CharacterArchetype({
           const data = await response.json();
           setArchetype(data);
           if (onArchetypeGenerated) onArchetypeGenerated(data);
+          haptic([100, 50, 100]);
           
           if (voiceEnabled) {
             speak(`Your journey mirrors that of ${data.character}. ${data.comparison}`, { rate: 0.82, pitch: 0.88, delay: 1000 });

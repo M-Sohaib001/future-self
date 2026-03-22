@@ -3,12 +3,6 @@ import html2canvas from 'html2canvas';
 
 /**
  * ShareableCard - Reusable download-as-image + copy-text + share utility
- * 
- * Props:
- * - cardRef: The ref to the DOM element to capture
- * - filename: Custom filename for the download
- * - text: The text to be copied or shared
- * - shareTitle: Title for the Web Share API
  */
 const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareTitle = "Future Self" }) => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -43,7 +37,6 @@ const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareT
       setCopyLabel('Copied ✓');
       setTimeout(() => setCopyLabel('Copy Text'), 2000);
     } catch (err) {
-      console.error('Failed to copy state:', err);
       setCopyLabel('Failed');
       setTimeout(() => setCopyLabel('Copy Text'), 2000);
     }
@@ -59,12 +52,11 @@ const ShareableCard = ({ cardRef, filename = "FutureSelf_Card.png", text, shareT
         });
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.error('Error sharing:', err);
-          handleCopy(); // Fallback to copy
+          handleCopy();
         }
       }
     } else {
-      handleCopy(); // Fallback to copy
+      handleCopy();
     }
   };
 

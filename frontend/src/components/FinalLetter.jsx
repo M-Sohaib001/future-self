@@ -14,7 +14,9 @@ export default function FinalLetter({
   personaHistoryPassive,
   onProceedToReview,
   musicEnabled,
-  toggleMusicEnabled
+  toggleMusicEnabled,
+  voiceEnabled,
+  toggleVoiceEnabled
 }) {
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'passive'
   const [fontStyle, setFontStyle] = useState('serif'); // 'serif' | 'sans' | 'mono'
@@ -33,9 +35,7 @@ export default function FinalLetter({
   const { 
     speak, 
     stopSpeaking, 
-    isSpeaking, 
-    voiceEnabled, 
-    toggleVoiceEnabled 
+    isSpeaking 
   } = useVoice();
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
@@ -213,61 +213,66 @@ export default function FinalLetter({
       </div>
 
       {/* The Downloadable Letter Container */}
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={activeTab}
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-3xl bg-black/60 backdrop-blur-xl border border-[#c9a84c]/30 p-8 md:p-16 lg:p-24 shadow-2xl"
-        >
-          <div ref={activeTab === 'active' ? letterActiveRef : letterPassiveRef} className="bg-black/40 p-4">
-            <div className={`space-y-8 text-lg md:text-xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-wider font-light text-zinc-200 ${fontStyle === 'serif' ? 'font-serif' : fontStyle === 'sans' ? 'font-sans' : 'font-mono'}`}>
-               {paragraphs.length === 0 && (
-                 <p className="text-center italic opacity-50">Decoding the transmission...</p>
-               )}
-               {paragraphs.map((para, index) => {
-                 const isLast = index === paragraphs.length - 1;
-                 const isFirstPara = index === 0;
-                 return (
-                   <motion.p 
-                     key={index}
-                     initial={{ opacity: 0 }}
-                     animate={{ opacity: 1 }}
-                     transition={{ duration: 1.2, delay: index * 0.15 }}
-                     className={`${isLast ? 'text-right mt-12 text-[#c9a84c] italic pr-4' : ''} ${isFirstPara ? 'pl-2' : ''}`}
-                   >
+      {/* Both letter containers are always rendered for html2canvas */}
+      {['active', 'passive'].map(tab => {
+        const letter = tab === 'active' ? letterActive : letterPassive;
+        const ref = tab === 'active' ? letterActiveRef : letterPassiveRef;
+        const paras = letter ? letter.split('\n').filter(p => p.trim() !== '') : [];
+        
+        return (
+          <div
+            key={tab}
+            ref={ref}
+            style={{ display: activeTab === tab ? 'block' : 'none' }}
+            className="relative z-10 w-full max-w-3xl bg-black/60 backdrop-blur-xl border border-[#c9a84c]/30 p-8 md:p-16 lg:p-24 shadow-2xl"
+          >
+            <div className="bg-black/40 p-4">
+              <div className={`space-y-8 text-lg md:text-xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-wider font-light text-zinc-200 ${fontStyle === 'serif' ? 'font-serif' : fontStyle === 'sans' ? 'font-sans' : 'font-mono'}`}>
+                {paras.length === 0 && (
+                  <p className="text-center italic opacity-50">Decoding the transmission...</p>
+                )}
+                {paras.map((para, index) => {
+                  const isLast = index === paras.length - 1;
+                  const isFirstPara = index === 0;
+                  return (
+                    <motion.p
+                      key={index}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 1.2, delay: index * 0.15 }}
+                      className={`${isLast ? 'text-right mt-12 text-[#c9a84c] italic pr-4' : ''} ${isFirstPara ? 'pl-2' : ''}`}
+                    >
                       {para}
                     </motion.p>
                   );
-                 })}
+                })}
               </div>
 
-           <p className="text-xs tracking-[0.3em] uppercase text-[#c9a84c]/30 mt-16 text-center">
-              Written to you on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}, from 3 years ahead
-           </p>
-          </div>
-        
-          {/* Artistic Corner Accents */}
-          <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-[#c9a84c]/40" />
-          <div className="absolute top-0 right-0 w-8 h-8 border-t border-r border-[#c9a84c]/40" />
-          <div className="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-[#c9a84c]/40" />
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-[#c9a84c]/40" />
-
-          {currentLetter && (
-            <div className="mt-12 flex justify-center">
-              <button 
-                onClick={handleReadAloud}
-                className="flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-[#c9a84c]/60 hover:text-[#c9a84c] transition-all group"
-              >
-                <span className="text-lg">{isSpeaking ? '◼' : '▶'}</span>
-                <span>{isSpeaking ? 'Stop Reading' : 'Read Aloud'}</span>
-              </button>
+              <p className="text-xs tracking-[0.3em] uppercase text-[#c9a84c]/30 mt-16 text-center">
+                Written to you on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}, from 3 years ahead
+              </p>
             </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
+          
+            {/* Artistic Corner Accents */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-[#c9a84c]/40" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t border-r border-[#c9a84c]/40" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-[#c9a84c]/40" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-[#c9a84c]/40" />
+
+            {letter && (
+              <div className="mt-12 flex justify-center">
+                <button
+                  onClick={handleReadAloud}
+                  className="flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-[#c9a84c]/60 hover:text-[#c9a84c] transition-all group"
+                >
+                  <span className="text-lg">{isSpeaking ? '◼' : '▶'}</span>
+                  <span>{isSpeaking ? 'Stop Reading' : 'Read Aloud'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Action Buttons (Not included in the downloaded image) */}
       <motion.div 

@@ -13,7 +13,9 @@ export default function PersonaChat({
   onHistoryUpdate,
   onProceedStep4,
   musicEnabled,
-  toggleMusicEnabled
+  toggleMusicEnabled,
+  voiceEnabled,
+  toggleVoiceEnabled
 }) {
   const [profiles, setProfiles] = useState(initialProfiles);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
@@ -31,8 +33,6 @@ export default function PersonaChat({
     speak, 
     stopSpeaking, 
     isSpeaking, 
-    voiceEnabled, 
-    toggleVoiceEnabled, 
     isListening, 
     startListening, 
     stopListening 

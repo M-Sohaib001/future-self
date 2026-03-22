@@ -319,8 +319,6 @@ const jsonbinGet = async () => {
 const jsonbinSet = async (data) => {
   if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) return;
 
-  if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) return;
-
   try {
     await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
       method: 'PUT',

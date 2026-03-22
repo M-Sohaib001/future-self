@@ -1,89 +1,67 @@
 import { useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 import ShareableCard from './ShareableCard';
 
-export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep3, musicEnabled, toggleMusicEnabled }) {
+export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep3, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const cardRef = useRef(null);
   const { 
     speak, 
     stopSpeaking, 
-    isSpeaking, 
-    voiceEnabled, 
-    toggleVoiceEnabled 
+    isSpeaking 
   } = useVoice();
 
+  const haptic = (v = [50]) => { if (navigator.vibrate) navigator.vibrate(v); };
+
   useEffect(() => {
-    if (navigator.vibrate) navigator.vibrate(50);
+    haptic([200, 100, 200]);
     if (voiceEnabled) {
-      speak(`What you really want is ${coreDesire}`, { rate: 0.68, pitch: 0.78, delay: 2500 });
+      speak(`What you really want... is ${coreDesire}`, { rate: 0.68, pitch: 0.78, delay: 2500 });
     }
-  }, [coreDesire, voiceEnabled]);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 lg:p-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <BackgroundEffects />
 
       {/* Fixed top-right controls */}
       <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
-        <button 
-          onClick={toggleMusicEnabled} 
-          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
-        >
+        <button onClick={toggleMusicEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
           <span>{musicEnabled ? '⬤' : '○'}</span>
           <span>Music</span>
         </button>
-        <button
-          onClick={toggleVoiceEnabled}
-          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-        >
+        <button onClick={toggleVoiceEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
           <span>{voiceEnabled ? '⬤' : '○'}</span>
           <span>Voice</span>
         </button>
       </div>
 
-      {isSpeaking && (
-        <button
-          onClick={stopSpeaking}
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all"
-        >
-          ◼ Stop
-        </button>
-      )}
-      
-      {/* Dynamic Ambient Breathing Animation */}
-      <motion.div 
-        animate={{ 
-          opacity: [0.08, 0.2, 0.08],
-          scale: [0.95, 1.05, 0.95]
-        }}
-        transition={{ 
-          duration: 6, 
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#c9a84c]/30 via-transparent to-transparent blur-[100px] z-0"
-      />
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.button
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            onClick={stopSpeaking}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all"
+          >
+            ◼ Stop
+          </motion.button>
+        )}
+      </AnimatePresence>
       
       <div className="relative z-10 text-center max-w-4xl w-full">
-        <h2 className="text-xs tracking-[0.4em] uppercase text-[#c9a84c] mb-6 drop-shadow-md font-bold">Your Core Desire</h2>
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 2, delay: 1 }}
-          className="text-xl md:text-2xl tracking-[0.2em] uppercase text-[#c9a84c]/80 mb-8 font-bold"
-        >
-          The Truth Revealed
-        </motion.p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-[#c9a84c]/40 mb-12 font-bold">The Truth Surfaces</p>
         
-        <div ref={cardRef} className="p-12 bg-black/20 backdrop-blur-sm border border-white/5 rounded-lg mb-12">
+        <div ref={cardRef} className="p-12 md:p-24 bg-black/40 backdrop-blur-xl border border-white/5 rounded-sm mb-12 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
           <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 3, delay: 2 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 3, delay: 1 }}
             className="text-4xl md:text-7xl leading-tight font-light"
           >
-            What you <i className="italic">really</i> want is <span className="block mt-6 text-[#c9a84c] font-bold drop-shadow-2xl">{coreDesire}.</span>
+            What you <i className="italic">really</i> want is <span className="block mt-6 text-[#c9a84c] font-bold drop-shadow-[0_0_20px_rgba(201,168,76,0.3)]">{coreDesire}.</span>
           </motion.h1>
         </div>
 
@@ -95,32 +73,31 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
           <ShareableCard 
             cardRef={cardRef} 
             filename="FutureSelf_CoreDesire.png" 
-            text={`What I really want is ${coreDesire}.`}
-            shareTitle="My Core Desire Revealed"
+            text={`What I really want is ${coreDesire}. Path revealed by Future Self.`}
+            shareTitle="My Core Desire"
           />
         </motion.div>
 
         <motion.div
            initial={{ opacity: 0 }}
            animate={{ opacity: 1 }}
-           transition={{ duration: 2, delay: 6 }}
-           className="mt-24 flex flex-col md:flex-row justify-center items-center gap-8"
+           transition={{ duration: 2, delay: 5.5 }}
+           className="mt-24 flex flex-col items-center gap-8"
         >
           <button 
             onClick={onProceedStep2}
-            className="group relative px-12 py-4 bg-transparent border border-[#c9a84c]/40 hover:border-[#c9a84c] transition-all duration-500 overflow-hidden"
+            className="group relative px-16 py-4 bg-[#c9a84c] text-black transition-all duration-500 hover:bg-white active:scale-95"
           >
-            <div className="absolute inset-0 bg-[#c9a84c]/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-            <span className="relative z-10 text-sm tracking-[0.5em] uppercase text-[#c9a84c] group-hover:text-white transition-colors duration-500">
+            <span className="relative z-10 text-sm tracking-[0.5em] uppercase font-bold">
               Step into the Future
             </span>
           </button>
 
           <button 
-            onClick={onProceedStep2}
-            className="text-[10px] uppercase tracking-[0.3em] text-zinc-700 hover:text-zinc-500 transition-all border-b border-transparent hover:border-zinc-600 pb-1 font-bold"
+            onClick={onProceedStep3}
+            className="text-[10px] uppercase tracking-[0.3em] text-zinc-700 hover:text-zinc-500 transition-all border-b border-zinc-900 hover:border-zinc-700 pb-1 font-bold"
           >
-            Skip to the Future
+            Skip Profiles — Speak with Future Self
           </button>
         </motion.div>
       </div>

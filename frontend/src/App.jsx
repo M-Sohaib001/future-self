@@ -7,6 +7,7 @@ import FutureProfiles from './components/FutureProfiles';
 import PersonaChat from './components/PersonaChat';
 import FinalLetter from './components/FinalLetter';
 import CharacterArchetype from './components/CharacterArchetype';
+import SummaryGallery from './components/SummaryGallery';
 import ReviewScreen from './components/ReviewScreen';
 import { useAmbientMusic } from './hooks/useAmbientMusic';
 import { useVoice } from './hooks/useVoice';
@@ -16,6 +17,14 @@ function App() {
   const [step, setStep] = useState(() => sessionStorage.getItem('fs_step') || 'disclaimer');
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('fs_apiKey') || '');
   const [coreDesire, setCoreDesire] = useState(() => sessionStorage.getItem('fs_coreDesire') || '');
+  const [profiles, setProfiles] = useState(() => {
+    const saved = sessionStorage.getItem('fs_profiles');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [archetypeData, setArchetypeData] = useState(() => {
+    const saved = sessionStorage.getItem('fs_archetype');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [emotionalArc, setEmotionalArc] = useState(null);
   const [sessionStats, setSessionStats] = useState(() => {
     const saved = sessionStorage.getItem('fs_sessionStats');
@@ -24,16 +33,6 @@ function App() {
 
   const { start: startMusic, stop: stopMusic, musicEnabled, toggleMusicEnabled } = useAmbientMusic();
   const { voiceEnabled, toggleVoiceEnabled } = useVoice();
-  const [profiles, setProfiles] = useState(() => {
-    const saved = sessionStorage.getItem('fs_profiles');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [archetype, setArchetype] = useState(() => {
-    const saved = sessionStorage.getItem('fs_archetype');
-    return saved ? JSON.parse(saved) : null;
-  });
-  // Alias for verification requirement
-  const archetypeData = archetype;
 
   // History states
   const [socratesHistory, setSocratesHistory] = useState(() => {
@@ -54,12 +53,12 @@ function App() {
     sessionStorage.setItem('fs_apiKey', apiKey);
     sessionStorage.setItem('fs_coreDesire', coreDesire);
     if (profiles) sessionStorage.setItem('fs_profiles', JSON.stringify(profiles));
-    if (archetype) sessionStorage.setItem('fs_archetype', JSON.stringify(archetype));
+    if (archetypeData) sessionStorage.setItem('fs_archetype', JSON.stringify(archetypeData));
     sessionStorage.setItem('fs_socratesHistory', JSON.stringify(socratesHistory));
     sessionStorage.setItem('fs_personaActive', JSON.stringify(personaHistoryActive));
     sessionStorage.setItem('fs_personaPassive', JSON.stringify(personaHistoryPassive));
     sessionStorage.setItem('fs_sessionStats', JSON.stringify(sessionStats));
-  }, [step, apiKey, coreDesire, profiles, archetype, socratesHistory, personaHistoryActive, personaHistoryPassive, sessionStats]);
+  }, [step, apiKey, coreDesire, profiles, archetypeData, socratesHistory, personaHistoryActive, personaHistoryPassive, sessionStats]);
 
   const handleAcknowledge = () => {
     startMusic();
@@ -72,25 +71,14 @@ function App() {
     setStep('chat');
   };
 
-  const handleReveal = (desire, history) => {
+  const handleReveal = (desire, history, questionCount) => {
     setCoreDesire(desire);
     setSocratesHistory(history);
-    const duration = Math.round((Date.now() - sessionStats.startTime) / 60000);
-    setSessionStats(prev => ({ ...prev, duration }));
+    const duration = sessionStats.startTime
+      ? Math.round((Date.now() - sessionStats.startTime) / 60000)
+      : 0;
+    setSessionStats(prev => ({ ...prev, duration, questionCount }));
     setStep('reveal');
-  };
-
-  const handleProceedToStep2 = () => {
-    setStep('profiles');
-  };
-
-  const handleProceedToStep3 = (generatedProfiles) => {
-    setProfiles(generatedProfiles);
-    setStep('personaChat');
-  };
-
-  const handleSkipToPersonaChat = () => {
-    setStep('personaChat');
   };
 
   const handleReset = () => {
@@ -134,8 +122,8 @@ function App() {
       {step === 'reveal' && (
         <RevealScreen 
           coreDesire={coreDesire} 
-          onProceedStep2={handleProceedToStep2}
-          onProceedStep3={handleSkipToPersonaChat} 
+          onProceedStep2={() => setStep('profiles')}
+          onProceedStep3={() => setStep('personaChat')} 
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
@@ -146,7 +134,10 @@ function App() {
         <FutureProfiles
           apiKey={apiKey}
           coreDesire={coreDesire}
-          onProceedStep3={handleProceedToStep3}
+          onProceedStep3={(generatedProfiles) => {
+            setProfiles(generatedProfiles);
+            setStep('personaChat');
+          }}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
@@ -176,13 +167,13 @@ function App() {
         <CharacterArchetype
           apiKey={apiKey}
           coreDesire={coreDesire}
-          history={socratesHistory}
+          socratesHistory={socratesHistory}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
           toggleVoiceEnabled={toggleVoiceEnabled}
           onArchetypeGenerated={(data) => {
-            setArchetype(data);
+            setArchetypeData(data);
           }}
           onEmotionAnalysed={(data) => setEmotionalArc(data)}
           onProceed={() => setStep('letter')}
@@ -193,7 +184,6 @@ function App() {
           apiKey={apiKey}
           coreDesire={coreDesire}
           profiles={profiles}
-          setProfiles={setProfiles}
           socratesHistory={socratesHistory}
           personaHistoryActive={personaHistoryActive}
           personaHistoryPassive={personaHistoryPassive}
@@ -207,40 +197,37 @@ function App() {
       {step === 'summary' && (
         <SummaryGallery
           coreDesire={coreDesire}
-          archetype={archetype}
+          archetype={archetypeData}
           profiles={profiles}
-          letters={{ 
-            active: sessionStorage.getItem('fs_letterActive'), 
-            passive: sessionStorage.getItem('fs_letterPassive') 
-          }}
           emotionalArc={emotionalArc}
-          history={socratesHistory}
+          letterActive={sessionStorage.getItem('fs_letterActive')}
+          letterPassive={sessionStorage.getItem('fs_letterPassive')}
           sessionStats={sessionStats}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
           toggleVoiceEnabled={toggleVoiceEnabled}
-          onProceed={() => setStep('review')}
+          onProceedToReview={() => setStep('review')}
+          onReset={handleReset}
         />
       )}
       {step === 'review' && (
         <ReviewScreen 
-          letters={{ 
-            active: sessionStorage.getItem('fs_letterActive'), 
-            passive: sessionStorage.getItem('fs_letterPassive') 
-          }}
-          coreDesire={coreDesire}
-          archetype={archetype}
-          profiles={profiles}
-          history={socratesHistory}
           apiKey={apiKey}
+          coreDesire={coreDesire}
+          archetype={archetypeData}
+          profiles={profiles}
+          letters={{
+            active: sessionStorage.getItem('fs_letterActive'),
+            passive: sessionStorage.getItem('fs_letterPassive')
+          }}
+          sessionStats={sessionStats}
+          emotionalArc={emotionalArc}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
           toggleVoiceEnabled={toggleVoiceEnabled}
           onReset={handleReset}
-          sessionStats={sessionStats}
-          emotionalArc={emotionalArc}
         />
       )}
     </>

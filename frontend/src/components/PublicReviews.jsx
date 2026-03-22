@@ -1,19 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-function formatRelativeTime(date) {
-  const now = new Date();
-  const diff = now - new Date(date);
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return 'Just now';
-}
 
 export default function PublicReviews() {
   const [reviews, setReviews] = useState([]);
@@ -22,13 +8,11 @@ export default function PublicReviews() {
   const fetchReviews = async () => {
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
-      const response = await fetch(`${API_BASE}/api/get-reviews`);
-      if (response.ok) {
-        const data = await response.json();
-        setReviews(data.reviews || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch reviews:', err);
+      const res = await fetch(`${API_BASE}/api/get-reviews`);
+      const data = await res.json();
+      setReviews(data.reviews || []);
+    } catch (e) {
+      console.error('Failed to fetch reviews:', e);
     } finally {
       setIsLoading(false);
     }
@@ -40,57 +24,65 @@ export default function PublicReviews() {
     return () => clearInterval(interval);
   }, []);
 
-  if (isLoading) return (
-    <div className="w-full max-w-4xl mx-auto py-24 px-6 text-center">
-      <div className="animate-pulse space-y-8">
-        <div className="h-4 bg-zinc-900 w-32 mx-auto rounded" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="h-40 bg-zinc-900 rounded" />
-          <div className="h-40 bg-zinc-900 rounded" />
-        </div>
-      </div>
+  const relativeTime = (iso) => {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
+  };
+
+  const RatingDots = ({ n }) => (
+    <div className="flex gap-1">
+      {[...Array(5)].map((_, i) => (
+        <span key={i} className="text-[#c9a84c] text-[8px]">
+          {i < n ? '●' : '○'}
+        </span>
+      ))}
     </div>
   );
-  
-  if (reviews.length === 0) return null;
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-24 px-6 border-t border-[#c9a84c]/10">
-      <h3 className="text-xs tracking-[0.4em] uppercase text-[#c9a84c]/60 mb-16 text-center font-bold">Chronal Registry</h3>
+    <div className="w-full py-12">
+      <p className="text-[9px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-12 text-center font-bold">Mementos Left Behind</p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <AnimatePresence>
-          {reviews.map((review, idx) => (
-            <motion.div
-              key={review.id || idx}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.05 }}
-              className="p-8 border border-white/5 bg-white/[0.02] backdrop-blur-sm relative group"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-[#c9a84c] mb-1">{review.name}</p>
-                  <p className="text-[8px] text-zinc-600 uppercase tracking-widest">{formatRelativeTime(review.timestamp)}</p>
-                </div>
-                <div className="flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className={`w-1 h-1 rounded-full ${i < review.rating ? 'bg-[#c9a84c]' : 'bg-zinc-800'}`} />
-                  ))}
-                </div>
-              </div>
-              
-              <p className="text-zinc-400 font-light italic leading-relaxed text-sm md:text-base">
-                "{review.feedback}"
-              </p>
-
-              {/* Corner accent */}
-              <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-[#c9a84c]/20 group-hover:border-[#c9a84c]/60 transition-colors" />
-            </motion.div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-[#0a0a0f] border border-[#c9a84c]/5 p-6 h-40 animate-pulse" />
           ))}
-        </AnimatePresence>
-      </div>
+        </div>
+      ) : reviews.length === 0 ? (
+        <p className="text-center text-zinc-600 text-sm italic py-12">Be the first to leave a memento</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence mode="popLayout">
+            {reviews.map((r, i) => (
+              <motion.div
+                key={r.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-[#0a0a0f] border border-[#c9a84c]/10 p-6 rounded-sm flex flex-col justify-between hover:border-[#c9a84c]/30 transition-colors"
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 font-bold">{r.name}</p>
+                    <RatingDots n={r.rating} />
+                  </div>
+                  <p className="text-sm text-zinc-300 font-light italic leading-relaxed line-clamp-4">"{r.feedback}"</p>
+                </div>
+                <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-700 mt-6">{relativeTime(r.timestamp)}</p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

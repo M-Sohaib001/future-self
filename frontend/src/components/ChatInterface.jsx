@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 
-export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
+export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +12,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
   const [typewriterIndex, setTypewriterIndex] = useState(-1);
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const haptic = (v = 30) => { if (navigator.vibrate) navigator.vibrate(v); };
+  const haptic = (v = [30]) => { if (navigator.vibrate) navigator.vibrate(v); };
   const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
   const { 
@@ -62,14 +62,13 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
     setError('');
 
     try {
+      let nextCounter = substantiveCounter;
       if (!isInitial) {
         const lower = currentInput.toLowerCase();
         if (!lower.includes('[skip]') && !lower.includes('[explain]')) {
-          setSubstantiveCounter(prev => {
-            const next = prev + 1;
-            if (onQuestionCountUpdate) onQuestionCountUpdate(next);
-            return next;
-          });
+          nextCounter = substantiveCounter + 1;
+          setSubstantiveCounter(nextCounter);
+          if (onQuestionCountUpdate) onQuestionCountUpdate(nextCounter);
         }
       }
 
@@ -101,7 +100,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
         const match = aiResponse.match(/REVEAL:\s*(.*)/);
         const coreDesire = match ? match[1].trim() : 'Unknown';
         if (voiceEnabled) speak(`What you really want... is ${coreDesire}`, { rate: 0.7, pitch: 0.8 });
-        onReveal(coreDesire, [...messages, { role: 'model', content: aiResponse }]);
+        onReveal(coreDesire, [...messages, { role: 'model', content: aiResponse }], nextCounter);
       } else {
         const messageParts = aiResponse.split('|');
         let mainText = aiResponse;
@@ -114,7 +113,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
         }
         
         const newMsgIdx = messages.length + (isInitial ? 0 : 1);
-        setMessages(prev => [...prev, { role: 'model', content: mainText, options, layer: substantiveCounter + (isInitial ? 1 : 0) }]);
+        setMessages(prev => [...prev, { role: 'model', content: mainText, options, layer: nextCounter + (isInitial ? 1 : 0) }]);
         setTypewriterIndex(newMsgIdx);
         haptic();
         if (voiceEnabled) speak(mainText, { delay: 800 });
@@ -137,36 +136,32 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
     <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-0 relative overflow-hidden">
       <BackgroundEffects />
 
-      {/* Voice controls */}
+      {/* Fixed top-right controls */}
       <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
-        <button 
-          onClick={toggleMusicEnabled} 
-          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2"
-        >
+        <button onClick={toggleMusicEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
           <span>{musicEnabled ? '⬤' : '○'}</span>
           <span>Music</span>
         </button>
-        <button
-          onClick={toggleVoiceEnabled}
-          className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all duration-500 flex items-center gap-2"
-        >
+        <button onClick={toggleVoiceEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
           <span>{voiceEnabled ? '⬤' : '○'}</span>
           <span>Voice</span>
         </button>
       </div>
 
-      {isSpeaking && (
-        <button
-          onClick={stopSpeaking}
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all font-sans"
-        >
-          ◼ Stop
-        </button>
-      )}
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.button
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            onClick={stopSpeaking}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all font-sans"
+          >
+            ◼ Stop
+          </motion.button>
+        )}
+      </AnimatePresence>
       
-      {/* Viewport grain overlay */}
-      <div className="absolute inset-0 pointer-events-none mix-blend-soft-light opacity-[0.1] bg-noise" />
-
       <div className="w-full max-w-3xl flex-1 flex flex-col z-10 relative">
         <div 
           ref={messagesContainerRef}
@@ -176,7 +171,8 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
             <AnimatePresence mode="popLayout">
               {messages.map((msg, idx) => {
                 const isNewest = idx === typewriterIndex && msg.role === 'model';
-                const counterLabel = msg.layer === 1 ? 'The Excavation Begins' : `Layer ${msg.layer} — Unravelling`;
+                const layerNum = msg.layer || 0;
+                const counterLabel = layerNum <= 1 ? 'The Excavation Begins' : `Layer ${layerNum} — Unravelling`;
 
                 return (
                   <motion.div
@@ -190,11 +186,6 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                       {msg.role === 'model' && (
                         <>
                           <div className="absolute -inset-x-6 -inset-y-4 bg-black/40 backdrop-blur-md border-x border-[#c9a84c]/30 rounded-sm -z-10 group-hover:bg-black/60 transition-all duration-1000 shadow-[0_0_30px_rgba(0,0,0,0.5)]" />
-                          <motion.div 
-                            animate={{ left: ['-100%', '200%'] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 3 }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a84c]/5 to-transparent -z-5"
-                          />
                           <div className="absolute -top-4 -left-6 w-3 h-3 border-t border-l border-[#c9a84c]/50" />
                           <div className="flex items-center gap-3 mb-5">
                             <span className="block text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/60 font-sans font-bold">
@@ -211,19 +202,27 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                         </>
                       )}
                       
-                      <p className={`text-lg md:text-xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-wider font-light ${
+                      <div className={`text-lg md:text-xl lg:text-2xl leading-[1.6] md:leading-[1.7] tracking-wider font-light ${
                         msg.role === 'user' 
-                          ? 'text-zinc-400 italic' 
+                          ? 'text-zinc-500 italic' 
                           : 'text-[#c9a84c] font-serif drop-shadow-[0_0_20px_rgba(201,168,76,0.15)]'
                       }`}>
-                        {isNewest ? <TypewriterText text={msg.content} onComplete={() => setTypewriterIndex(-1)} onStart={() => haptic(30)} /> : msg.content}
-                      </p>
+                        {isNewest ? (
+                          <TypewriterText 
+                            text={msg.content} 
+                            onComplete={() => setTypewriterIndex(-1)} 
+                            onStart={() => haptic([30])} 
+                          />
+                        ) : (
+                          msg.content
+                        )}
+                      </div>
                       
                       {msg.role === 'model' && msg.options && msg.options.length > 0 && idx === messages.length - 1 && !isLoading && (
                         <motion.div 
-                          initial={{ opacity: 0, scale: 0.98 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 1, duration: 1.5 }}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 1, duration: 1 }}
                           className="flex flex-wrap justify-center gap-4 mt-12 w-full"
                         >
                           {msg.options.map((opt, i) => (
@@ -232,7 +231,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                               onClick={() => {
                                 if (!isLoading) sendMessage(opt);
                               }}
-                              className="px-8 py-3 bg-black/60 border border-[#c9a84c]/20 text-[10px] md:text-xs text-[#c9a84c]/60 hover:bg-[#c9a84c]/20 hover:border-[#c9a84c]/60 hover:text-[#c9a84c] hover:scale-105 transition-all duration-500 rounded-sm tracking-[0.3em] uppercase backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,168,76,0.15)]"
+                              className="px-8 py-3 bg-black/60 border border-[#c9a84c]/20 text-[10px] md:text-xs text-[#c9a84c]/60 hover:bg-[#c9a84c]/20 hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-500 rounded-sm tracking-[0.3em] uppercase backdrop-blur-md active:scale-95"
                             >
                               {opt}
                             </button>
@@ -269,56 +268,45 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
         </div>
 
         {error && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="fixed inset-0 flex items-center justify-center z-[100] px-6 bg-black/40 backdrop-blur-sm"
-          >
-            {(() => {
-              const isRateLimit = error.includes('oracle') || error.includes('429');
-              return (
-                <div className={`max-w-md w-full bg-[#0a0a0f] p-10 text-center border shadow-2xl ${isRateLimit ? 'border-amber-900 shadow-[0_0_50px_rgba(180,83,9,0.15)]' : 'border-red-950 shadow-[0_0_50px_rgba(153,27,27,0.15)]'}`}>
-                  <p className={`font-bold mb-4 uppercase tracking-[0.4em] text-xs ${isRateLimit ? 'text-amber-500' : 'text-red-800'}`}>
-                    {isRateLimit ? 'Equilibrium Required' : 'Connection Ruptured'}
-                  </p>
-                  <p className="text-zinc-500 text-sm leading-relaxed mb-8 italic">{error}</p>
-                  <button 
-                    onClick={() => window.location.reload()}
-                    className={`w-full py-4 border text-[10px] uppercase tracking-[0.4em] transition-all duration-700 ${isRateLimit ? 'border-amber-900/40 text-amber-700/80 hover:bg-amber-950/20 hover:text-amber-600' : 'border-red-950/20 hover:text-red-600'}`}
-                  >
-                    {isRateLimit ? 'Wait for Clarity' : 'Re-establish Link'}
-                  </button>
-                </div>
-              );
-            })()}
-          </motion.div>
+          <div className="fixed inset-0 flex items-center justify-center z-[100] px-6 bg-black/40 backdrop-blur-sm">
+            <div className="max-w-md w-full bg-[#0a0a0f] p-10 text-center border border-red-950 shadow-2xl">
+              <p className="font-bold mb-4 uppercase tracking-[0.4em] text-xs text-red-800">Connection Ruptured</p>
+              <p className="text-zinc-500 text-sm leading-relaxed mb-8 italic">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-4 border border-red-950/20 text-[10px] uppercase tracking-[0.4em] text-red-600 hover:bg-red-950/20"
+              >
+                Re-establish Link
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Bottom fade gradient above input */}
-        <div className="fixed bottom-0 left-0 right-0 h-[120px] bg-gradient-to-t from-[#050508] to-transparent pointer-events-none z-30" />
+        <div className="fixed bottom-0 left-0 right-0 h-[150px] bg-gradient-to-t from-[#050508] to-transparent pointer-events-none z-30" />
 
-        <div className="fixed bottom-0 left-0 right-0 py-8 px-6 lg:px-12 z-40">
+        <div className="fixed bottom-0 left-0 right-0 py-12 px-6 lg:px-12 z-40">
           <div className="max-w-xl mx-auto relative group">
             <div className={`absolute -inset-x-8 -inset-y-6 bg-black/60 backdrop-blur-xl border rounded-sm -z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-all duration-500 ${
-              isListening ? 'border-[#c9a84c] ring-1 ring-[#c9a84c]/30 animate-pulse-subtle' : 'border-[#c9a84c]/20'
+              isListening ? 'border-[#c9a84c] ring-1 ring-[#c9a84c]/30' : 'border-[#c9a84c]/20'
             }`} />
             
-            <div className="flex justify-center space-x-6 mb-4">
+            <div className="flex justify-center space-x-8 mb-4">
               <button
                 type="button"
                 onClick={() => sendMessage('[SKIP]')}
                 disabled={isLoading || !!error || messages.length === 0}
-                className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10"
+                className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10 active:scale-95"
               >
-                Different Question
+                DIFFERENT QUESTION
               </button>
               <button
                 type="button"
                 onClick={() => sendMessage('[EXPLAIN]')}
                 disabled={isLoading || !!error || messages.length === 0}
-                className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10"
+                className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/40 hover:text-[#c9a84c] transition-colors disabled:opacity-10 active:scale-95"
               >
-                Explain Simply
+                EXPLAIN SIMPLY
               </button>
             </div>
             
@@ -329,7 +317,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Echo your core truth..."
                 disabled={isLoading || !!error}
-                className="w-full bg-transparent border-b border-[#c9a84c]/30 pb-6 text-lg md:text-xl text-white/90 focus:outline-none focus:border-[#c9a84c] transition-all duration-1000 placeholder:text-zinc-700 disabled:opacity-20 tracking-[0.1em] font-light"
+                className="w-full bg-transparent border-b border-[#c9a84c]/30 pb-6 text-lg md:text-xl text-white/90 focus:outline-none focus:border-[#c9a84c] transition-all duration-1000 placeholder:text-zinc-800 disabled:opacity-20 tracking-[0.1em] font-light"
               />
               <button
                 type="button"
@@ -337,7 +325,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                 className={`absolute right-0 bottom-4 p-2 transition-all duration-500 ${
                   isListening 
                     ? 'text-[#c9a84c] animate-pulse drop-shadow-[0_0_10px_rgba(201,168,76,0.8)]' 
-                    : 'text-zinc-600 hover:text-[#c9a84c]/60'
+                    : 'text-zinc-700 hover:text-[#c9a84c]/60'
                 }`}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -347,11 +335,8 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
                   <line x1="8" y1="23" x2="16" y2="23"/>
                 </svg>
               </button>
-              <motion.div 
-                style={{ originX: 0 }}
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: input.length > 0 ? 1 : 0 }}
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#c9a84c] transition-transform duration-700" 
+              <div 
+                className={`absolute bottom-0 left-0 right-0 h-[1px] bg-[#c9a84c] transition-all duration-700 ${input.length > 0 ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'}`}
               />
             </form>
           </div>
@@ -360,6 +345,7 @@ export default function ChatInterface({ apiKey, onReveal, musicEnabled, toggleMu
     </div>
   );
 }
+
 function TypewriterText({ text, onComplete, onStart }) {
   const [displayed, setDisplayed] = useState('');
   useEffect(() => {

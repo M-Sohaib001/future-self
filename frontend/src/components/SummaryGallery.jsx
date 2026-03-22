@@ -1,214 +1,344 @@
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useState, useRef } from 'react';
+import BackgroundEffects from './BackgroundEffects';
 import ShareableCard from './ShareableCard';
 import EmotionalArcVisual from './EmotionalArcVisual';
 import PublicReviews from './PublicReviews';
-import BackgroundEffects from './BackgroundEffects';
+import { useVoice } from '../hooks/useVoice';
 
-export default function SummaryGallery({ coreDesire, archetype, profiles, letters, stats, emotionalArc, onProceed }) {
-  if (!coreDesire || !archetype || !profiles) return null;
-  const [activeTab, setActiveTab] = useState('active');
-  const cardRef = useRef(null);
-  const archetypeRef = useRef(null);
+export default function SummaryGallery({ 
+  coreDesire, archetype, profiles, emotionalArc, 
+  letterActive, letterPassive, sessionStats, 
+  musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled, 
+  onProceedToReview, onReset 
+}) {
+  const [letterFont, setLetterFont] = useState('serif');
+  const [activeLetterTab, setActiveLetterTab] = useState('active');
+  const { speak, stopSpeaking, isSpeaking } = useVoice();
+  
+  const desireCardRef = useRef();
+  const archetypeCardRef = useRef();
+  const letterActiveGalleryRef = useRef();
+  const letterPassiveGalleryRef = useRef();
 
-  const formatDuration = (ms) => {
-    if (!ms) return '0m';
-    const mins = Math.floor(ms / 60000);
-    return `${mins}m`;
+  const fontOptions = [
+    { id: 'serif', label: 'Serif', class: 'font-serif font-light' },
+    { id: 'modern', label: 'Modern', class: 'font-sans font-light tracking-wide' },
+    { id: 'elegant', label: 'Elegant', class: 'font-serif font-extralight italic tracking-wider' }
+  ];
+
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 1.5 } }
   };
 
+  const Divider = () => (
+    <div className="w-full h-px bg-gradient-to-r from-transparent via-[#c9a84c]/30 to-transparent my-24" />
+  );
+
   return (
-    <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif relative overflow-hidden">
+    <div className="min-h-screen bg-[#050508] font-serif relative overflow-x-hidden text-zinc-300">
       <BackgroundEffects />
       
-      {/* Journey Header */}
-      <section className="relative h-screen flex flex-col items-center justify-center p-6 text-center z-10">
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          className="text-[10px] uppercase tracking-[0.6em] text-[#c9a84c]/60 mb-8 font-bold"
-        >
-          Journey Log #FS-7742
-        </motion.p>
-        <motion.h1 
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 2 }}
-          className="text-4xl md:text-7xl font-light mb-16 tracking-tight"
-        >
-          You sought <span className="text-white italic">{coreDesire}</span>
-        </motion.h1>
+      {/* Global Controls */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
+        <button onClick={toggleMusicEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
+          <span>{musicEnabled ? '⬤' : '○'}</span>
+          <span>Music</span>
+        </button>
+        <button onClick={toggleVoiceEnabled} className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all flex items-center gap-2">
+          <span>{voiceEnabled ? '⬤' : '○'}</span>
+          <span>Voice</span>
+        </button>
+      </div>
+
+      {isSpeaking && (
+        <button onClick={stopSpeaking} className="fixed top-6 left-1/2 -translate-x-1/2 z-50 text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all">
+          ◼ Stop
+        </button>
+      )}
+
+      {/* SECTION 1 — Journey Header */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="max-w-3xl mx-auto py-32 px-6 text-center"
+      >
+        <p className="text-[9px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-12">The Records of Choice</p>
+        <p className="text-sm tracking-[0.2em] text-zinc-500 mb-8 uppercase font-bold">
+          In {sessionStats?.questionCount || '?'} questions, the oracle found your truth.
+        </p>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-12 max-w-4xl w-full border-t border-b border-[#c9a84c]/20 py-12">
-          <div>
-            <p className="text-[8px] uppercase tracking-[0.3em] text-[#c9a84c]/40 mb-2">Substantive Interrogations</p>
-            <p className="text-2xl font-bold">{stats?.questionCount || 0}</p>
+        {emotionalArc?.dominantEmotion && (
+          <div className="inline-block px-4 py-1 rounded-full border border-[#c9a84c]/30 text-[10px] uppercase tracking-widest text-[#c9a84c] mb-8 bg-[#c9a84c]/5">
+            Frequency: {emotionalArc.dominantEmotion}
           </div>
-          <div>
-            <p className="text-[8px] uppercase tracking-[0.3em] text-[#c9a84c]/40 mb-2">Chronal Depth</p>
-            <p className="text-2xl font-bold">{formatDuration(stats?.duration)}</p>
-          </div>
-          <div>
-            <p className="text-[8px] uppercase tracking-[0.3em] text-[#c9a84c]/40 mb-2">Dominant Frequency</p>
-            <p className="text-2xl font-bold uppercase tracking-wider">{emotionalArc?.dominantEmotion || 'Neutral'}</p>
-          </div>
-          <div>
-            <p className="text-[8px] uppercase tracking-[0.3em] text-[#c9a84c]/40 mb-2">Current Epoch</p>
-            <p className="text-2xl font-bold">2026-2029</p>
-          </div>
-        </div>
+        )}
+
+        <p className="text-xl md:text-2xl text-zinc-400 italic mb-12 leading-loose px-4">
+          {emotionalArc?.emotionalSummary}
+        </p>
         
-        <motion.div 
-          animate={{ y: [0, 10, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="absolute bottom-12 flex flex-col items-center gap-2"
-        >
-          <p className="text-[8px] uppercase tracking-[0.4em] text-zinc-600">Scroll to Decipher</p>
-          <div className="w-px h-12 bg-gradient-to-b from-[#c9a84c]/40 to-transparent" />
-        </motion.div>
-      </section>
+        <p className="text-xs zinc-700 uppercase tracking-widest opacity-50">
+          {sessionStats?.duration || '?'} minutes of unravelling
+        </p>
 
-      {/* Section 1: Core Desire Card */}
-      <section className="min-h-screen flex flex-col items-center justify-center p-6 bg-black/40 backdrop-blur-sm border-t border-white/5 relative z-10">
-        <div ref={cardRef} className="max-w-2xl w-full p-12 border border-[#c9a84c]/30 bg-black/60 shadow-2xl relative group">
-          <p className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-8 font-bold text-center">The Root of Your Future</p>
-          <p className="text-3xl md:text-5xl text-center text-white font-light italic leading-relaxed">
-            "{coreDesire}"
-          </p>
-          <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-[#c9a84c]/60" />
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-[#c9a84c]/60" />
-        </div>
-        <ShareableCard 
-          cardRef={cardRef} 
-          text={`My core desire is ${coreDesire}. Peered into my future self today.`} 
-          shareTitle="My Core Desire"
-        />
-      </section>
+        <h1 className="text-6xl md:text-8xl lg:text-9xl text-[#c9a84c] font-bold mt-20 tracking-tighter drop-shadow-[0_0_30px_rgba(201,168,76,0.2)]">
+          {coreDesire}
+        </h1>
+      </motion.section>
 
-      {/* Section 2: EmotionalArcVisual */}
-      <section className="bg-black relative z-10">
-        <EmotionalArcVisual 
-          data={emotionalArc?.arc} 
-          dominantEmotion={emotionalArc?.dominantEmotion} 
-          emotionalSummary={emotionalArc?.emotionalSummary} 
-        />
-      </section>
+      <Divider />
 
-      {/* Section 3: Archetype Compact Card */}
-      <section className="min-h-screen flex flex-col items-center justify-center p-6 border-t border-white/5 relative z-10">
-        <div ref={archetypeRef} className="max-w-5xl w-full flex flex-col md:flex-row border border-[#c9a84c]/20 bg-black/60 backdrop-blur-md overflow-hidden shadow-2xl">
-          <div className="w-full md:w-1/3 aspect-square bg-[#c9a84c]/5 flex items-center justify-center border-b md:border-b-0 md:border-r border-[#c9a84c]/10">
-             <span className="text-9xl md:text-[12rem] font-serif text-[#c9a84c]/20 italic">{archetype.character.charAt(0)}</span>
-          </div>
-          <div className="p-12 flex-1 space-y-8">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/40 mb-2 font-bold font-sans">The Mirror</p>
-              <h3 className="text-4xl font-light text-white">{archetype.character}</h3>
-              <p className="text-zinc-500 italic mt-2">from {archetype.origin}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/40 mb-2 font-bold font-sans">The Essence</p>
-              <p className="text-xl text-zinc-300 leading-relaxed italic">"{archetype.trait}"</p>
-            </div>
-            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-[#c9a84c]/10">
-               <div>
-                 <p className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/30 mb-1">Shared Wound</p>
-                 <p className="text-[10px] uppercase tracking-widest text-white">{archetype.sharedWound}</p>
-               </div>
-               <div>
-                 <p className="text-[9px] uppercase tracking-[0.3em] text-[#c9a84c]/30 mb-1">Divergence</p>
-                 <p className="text-[10px] uppercase tracking-widest text-[#c9a84c]">{archetype.divergence}</p>
-               </div>
-            </div>
+      {/* SECTION 2 — Core Desire Card */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="px-6"
+      >
+        <div ref={desireCardRef} className="max-w-2xl mx-auto bg-black/60 border border-[#c9a84c]/30 p-12 md:p-20 relative group overflow-hidden">
+          <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-[#c9a84c]/40 group-hover:border-[#c9a84c] transition-colors" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-[#c9a84c]/40 group-hover:border-[#c9a84c] transition-colors" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-[#c9a84c]/40 group-hover:border-[#c9a84c] transition-colors" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-[#c9a84c]/40 group-hover:border-[#c9a84c] transition-colors" />
+          
+          <div className="relative z-10 text-center">
+            <p className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-12 font-bold">What I really want is</p>
+            <h2 className="text-4xl md:text-6xl text-[#c9a84c] font-bold tracking-tight mb-16">{coreDesire}</h2>
+            <p className="text-[8px] uppercase tracking-[0.4em] text-zinc-700">Discovered via Future Self Protocol</p>
           </div>
         </div>
-        <div className="mt-8">
+        <div className="flex justify-center mt-8">
           <ShareableCard 
-            cardRef={archetypeRef} 
-            text={`I share a psychological archetype with ${archetype.character}. ${archetype.trait}`} 
-            shareTitle="My Archetype"
+            cardRef={desireCardRef} 
+            filename="FutureSelf_Desire.png"
+            text={`What I really want is ${coreDesire}.\n\nDiscovered via Future Self.`}
+            shareTitle="My Core Desire — Future Self" 
           />
         </div>
-      </section>
+      </motion.section>
 
-      {/* Section 4 & 5: Two Futures Side-by-Side */}
-      <section className="min-h-screen py-24 px-6 border-t border-white/5 relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
-          <div className="flex-1 p-12 border border-zinc-900 bg-white/[0.02] backdrop-blur-sm group hover:border-white/10 transition-all duration-700">
-            <h3 className="text-[10px] uppercase tracking-[0.4em] text-zinc-600 mb-6 font-bold">The Ghost (Passive)</h3>
-            <p className="text-lg md:text-xl text-zinc-400 font-light leading-relaxed italic">
-              {profiles.passive}
+      <Divider />
+
+      {/* SECTION 3 — Emotional Arc */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="max-w-4xl mx-auto px-6"
+      >
+        <EmotionalArcVisual arcData={emotionalArc?.arc} dominantEmotion={emotionalArc?.dominantEmotion} emotionalSummary={emotionalArc?.emotionalSummary} />
+      </motion.section>
+
+      <Divider />
+
+      {/* SECTION 4 — Character Archetype Card */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="px-6"
+      >
+        <div 
+          ref={archetypeCardRef} 
+          className="max-w-4xl mx-auto p-12 relative overflow-hidden bg-black border border-[#c9a84c]/10"
+          style={{
+            background: `radial-gradient(circle at center, ${archetype?.palette?.primary}11 0%, transparent 80%)`
+          }}
+        >
+          <div className="absolute top-4 left-4 text-[8px] uppercase tracking-widest text-zinc-900 border-l border-t border-white/5 pl-2 pt-1">
+            Psyche Map #72
+          </div>
+          
+          <div className="flex flex-col md:flex-row gap-12 items-center">
+            <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border border-[#c9a84c]/20 flex items-center justify-center p-4 relative">
+              <div className="absolute inset-0 rounded-full animate-pulse border border-[#c9a84c]/10" />
+              <div className="text-center">
+                <p className="text-[8px] uppercase tracking-widest text-[#c9a84c]/40 mb-1">Archetype</p>
+                <p className="text-zinc-300 font-light italic text-xs">{archetype?.trait}</p>
+              </div>
+            </div>
+            
+            <div className="flex-1 text-center md:text-left">
+              <p className="text-[9px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-2 font-bold">The Mirror</p>
+              <h3 className="text-4xl md:text-6xl font-bold mb-2 tracking-tight" style={{ color: archetype?.palette?.primary }}>
+                {archetype?.character}
+              </h3>
+              <p className="text-zinc-500 text-sm italic mb-8 uppercase tracking-widest">{archetype?.origin}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-[11px] uppercase tracking-widest leading-relaxed">
+                 <div>
+                   <p className="text-zinc-600 mb-2">The Wound</p>
+                   <p className="text-white">{archetype?.sharedWound}</p>
+                 </div>
+                 <div>
+                   <p className="text-zinc-600 mb-2">The Blueprint</p>
+                   <p style={{ color: archetype?.palette?.secondary }}>{archetype?.divergence}</p>
+                 </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-12 pt-12 border-t border-white/5 italic text-zinc-400 text-sm leading-loose">
+            {archetype?.comparison}
+          </div>
+        </div>
+        <div className="flex justify-center mt-8">
+          <ShareableCard 
+            cardRef={archetypeCardRef} 
+            filename={`FutureSelf_Archetype_${archetype?.character?.replace(/\s+/g,'_')}.png`}
+            text={`I am ${archetype?.character} from ${archetype?.origin}.\n\n${archetype?.comparison}\n\nShared wound: ${archetype?.sharedWound}\n\nDiscovered via Future Self`}
+            shareTitle={`My Character Archetype — ${archetype?.character}`}
+          />
+        </div>
+      </motion.section>
+
+      <Divider />
+
+      {/* SECTION 5 — The Two Futures */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="max-w-6xl mx-auto px-6"
+      >
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex-1 bg-black/40 border border-zinc-800 p-8 hover:bg-black/60 transition-all duration-700">
+            <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-600 mb-6 font-bold">Timeline A — The Ghost</p>
+            <p className="text-zinc-400 text-xs uppercase tracking-widest mb-8">If you stayed comfortable.</p>
+            <p className="text-zinc-400 font-light leading-[2] italic text-sm md:text-base">
+              {profiles?.passive}
             </p>
           </div>
-          <div className="flex-1 p-12 border border-[#c9a84c]/20 bg-[#c9a84c]/5 backdrop-blur-sm group hover:border-[#c9a84c] transition-all duration-700">
-            <h3 className="text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/40 mb-6 font-bold">The Architect (Active)</h3>
-            <p className="text-lg md:text-xl text-[#c9a84c] font-light leading-relaxed italic">
-              {profiles.active}
+          <div className="flex-1 bg-black/60 border border-[#c9a84c]/20 p-8 shadow-[0_0_50px_rgba(201,168,76,0.05)]">
+            <p className="text-[9px] uppercase tracking-[0.4em] text-[#c9a84c]/60 mb-6 font-bold">Timeline B — The Architect</p>
+            <p className="text-white text-xs uppercase tracking-widest mb-8">If you pursued the truth.</p>
+            <p className="text-[#c9a84c]/90 font-light leading-[2] italic text-sm md:text-base">
+              {profiles?.active}
             </p>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Section 6: Letters */}
-      <section className="min-h-screen py-24 px-6 bg-black/40 border-t border-white/5 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-4 font-bold">Final Epistles</p>
-            <h2 className="text-2xl md:text-4xl font-light">Letters from Your Futures</h2>
+      <Divider />
+
+      {/* SECTION 6 — The Letters */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="py-12"
+      >
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-center gap-4 mb-12">
+            {fontOptions.map(f => (
+              <button 
+                key={f.id}
+                onClick={() => setLetterFont(f.id)}
+                className={`text-[8px] uppercase tracking-widest px-4 py-2 border transition-all ${letterFont === f.id ? 'border-[#c9a84c] text-[#c9a84c] bg-[#c9a84c]/5' : 'border-zinc-800 text-zinc-600'}`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
 
-          {/* Desktop side-by-side */}
-          <div className="hidden md:flex gap-12">
-            <div className="flex-1 p-10 bg-zinc-950/40 border border-zinc-900 text-zinc-500 text-xs italic leading-loose whitespace-pre-wrap font-serif">
-              {letters.passive}
+          {/* Desktop View */}
+          <div className="hidden md:flex flex-row gap-12">
+            <div className="flex-1 flex flex-col items-center">
+              <div ref={letterPassiveGalleryRef} className="bg-black/80 border border-zinc-800 p-12 lg:p-16 shadow-2xl relative w-full h-full min-h-[600px]">
+                 <div className="absolute top-6 left-6 text-[8px] uppercase tracking-widest text-zinc-800">The Ghost</div>
+                 <div className={`whitespace-pre-wrap leading-loose ${fontOptions.find(f => f.id === letterFont).class} text-zinc-500 text-sm lg:text-base`}>
+                   {letterPassive}
+                 </div>
+              </div>
+              <div className="flex gap-4 mt-8">
+                 <button onClick={() => speak(letterPassive)} className="text-[9px] uppercase tracking-widest text-zinc-600 hover:text-white transition-all underline decoration-zinc-800 underline-offset-8">Read Aloud</button>
+                 <ShareableCard cardRef={letterPassiveGalleryRef} filename="FutureSelf_Letter_Ghost.png" text={letterPassive} shareTitle="A Letter from my Future Self — The Ghost" />
+              </div>
             </div>
-            <div className="flex-1 p-10 bg-[#c9a84c]/5 border border-[#c9a84c]/20 text-[#c9a84c]/80 text-xs italic leading-loose whitespace-pre-wrap font-serif shadow-[0_0_30px_rgba(201,168,76,0.05)]">
-              {letters.active}
+
+            <div className="flex-1 flex flex-col items-center">
+              <div ref={letterActiveGalleryRef} className="bg-[#c9a84c]/[0.02] border border-[#c9a84c]/30 p-12 lg:p-16 shadow-2xl relative w-full h-full min-h-[600px]">
+                 <div className="absolute top-6 left-6 text-[8px] uppercase tracking-widest text-[#c9a84c]/40">The Architect</div>
+                 <div className={`whitespace-pre-wrap leading-loose ${fontOptions.find(f => f.id === letterFont).class} text-[#c9a84c]/80 text-sm lg:text-base`}>
+                   {letterActive}
+                 </div>
+                 <div className="absolute bottom-6 right-6 w-12 h-12 border-r border-b border-[#c9a84c]/20" />
+              </div>
+              <div className="flex gap-4 mt-8">
+                 <button onClick={() => speak(letterActive)} className="text-[9px] uppercase tracking-widest text-[#c9a84c]/60 hover:text-[#c9a84c] transition-all underline decoration-[#c9a84c]/20 underline-offset-8">Read Aloud</button>
+                 <ShareableCard cardRef={letterActiveGalleryRef} filename="FutureSelf_Letter_Architect.png" text={letterActive} shareTitle="A Letter from my Future Self — The Architect" />
+              </div>
             </div>
           </div>
 
-          {/* Mobile tabs */}
+          {/* Mobile View */}
           <div className="md:hidden">
             <div className="flex border-b border-zinc-900 mb-8">
-               <button onClick={() => setActiveTab('passive')} className={`flex-1 py-4 text-[10px] uppercase tracking-widest transition-all ${activeTab === 'passive' ? 'text-[#c9a84c] border-b border-[#c9a84c]' : 'text-zinc-700'}`}>Passive</button>
-               <button onClick={() => setActiveTab('active')} className={`flex-1 py-4 text-[10px] uppercase tracking-widest transition-all ${activeTab === 'active' ? 'text-[#c9a84c] border-b border-[#c9a84c]' : 'text-zinc-700'}`}>Active</button>
+              <button 
+                onClick={() => setActiveLetterTab('passive')}
+                className={`flex-1 py-4 text-[10px] uppercase tracking-[0.3em] transition-all ${activeLetterTab === 'passive' ? 'text-zinc-200 border-b border-white' : 'text-zinc-700'}`}
+              >
+                The Ghost
+              </button>
+              <button 
+                onClick={() => setActiveLetterTab('active')}
+                className={`flex-1 py-4 text-[10px] uppercase tracking-[0.3em] transition-all ${activeLetterTab === 'active' ? 'text-[#c9a84c] border-b border-[#c9a84c]' : 'text-zinc-700'}`}
+              >
+                The Architect
+              </button>
             </div>
-            <div className={`p-8 italic text-xs leading-loose whitespace-pre-wrap font-serif ${activeTab === 'active' ? 'text-[#c9a84c]/80' : 'text-zinc-500'}`}>
-               {activeTab === 'active' ? letters.active : letters.passive}
+            <div className="flex flex-col items-center">
+              <div 
+                ref={activeLetterTab === 'active' ? letterActiveGalleryRef : letterPassiveGalleryRef} 
+                className={`w-full p-8 border ${activeLetterTab === 'active' ? 'bg-[#c9a84c]/[0.03] border-[#c9a84c]/30' : 'bg-black/60 border-zinc-800'}`}
+              >
+                <div className={`whitespace-pre-wrap leading-[2] text-sm italic ${fontOptions.find(f => f.id === letterFont).class} ${activeLetterTab === 'active' ? 'text-[#c9a84c]' : 'text-zinc-400'}`}>
+                  {activeLetterTab === 'active' ? letterActive : letterPassive}
+                </div>
+              </div>
+              <div className="flex gap-4 mt-8">
+                 <button onClick={() => speak(activeLetterTab === 'active' ? letterActive : letterPassive)} className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Read Aloud</button>
+                 <ShareableCard 
+                    cardRef={activeLetterTab === 'active' ? letterActiveGalleryRef : letterPassiveGalleryRef} 
+                    filename={`FutureSelf_Letter_${activeLetterTab}.png`} 
+                    text={activeLetterTab === 'active' ? letterActive : letterPassive} 
+                    shareTitle={`Letter from my Future Self — ${activeLetterTab}`} 
+                  />
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Section 7: PublicReviews */}
-      <section className="relative z-10">
+      <Divider />
+
+      {/* SECTION 7 — Public Reviews */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="max-w-6xl mx-auto px-6"
+      >
         <PublicReviews />
-      </section>
+      </motion.section>
 
-      {/* Section 8: CTA Buttons */}
-      <section className="min-h-screen flex flex-col items-center justify-center p-6 border-t border-[#c9a84c]/10 relative z-10">
-        <div className="text-center mb-16 space-y-4">
-          <h2 className="text-3xl md:text-5xl font-light tracking-wide">The journey is etched.</h2>
-          <p className="text-zinc-600 text-[10px] uppercase tracking-[0.4em] font-bold">What will you do with this knowledge?</p>
+      <Divider />
+
+      {/* SECTION 8 — CTA */}
+      <motion.section 
+        initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+        className="max-w-3xl mx-auto py-32 px-6 text-center"
+      >
+        <p className="text-[10px] uppercase tracking-[0.6em] text-zinc-600 mb-16 font-bold">Your journey has been saved to this device.</p>
+        
+        <div className="flex flex-col md:flex-row gap-8 justify-center">
+           <button 
+             onClick={onProceedToReview}
+             className="px-12 py-5 bg-[#c9a84c] text-[#050508] text-[10px] uppercase tracking-[0.5em] font-bold hover:bg-white transition-all shadow-[0_20px_60px_rgba(201,168,76,0.1)] active:scale-95"
+           >
+             Leave a Memento
+           </button>
+           <button 
+             onClick={onReset}
+             className="px-12 py-5 border border-zinc-800 text-zinc-600 text-[10px] uppercase tracking-[0.5em] hover:border-zinc-400 hover:text-zinc-400 transition-all active:scale-95"
+           >
+             Begin Again
+           </button>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-8 w-full max-w-2xl">
-          <button 
-            onClick={onProceed}
-            className="flex-1 py-6 bg-[#c9a84c] text-black font-bold uppercase tracking-[0.5em] text-xs hover:bg-white hover:scale-105 transition-all shadow-[0_20px_40px_rgba(201,168,76,0.1)]"
-          >
-            Leave a Memento
-          </button>
-          <button 
-            onClick={() => window.location.reload()}
-            className="flex-1 py-6 border border-zinc-800 text-zinc-600 font-bold uppercase tracking-[0.5em] text-xs hover:border-zinc-400 hover:text-zinc-400 transition-all"
-          >
-            Vanish Into the Void
-          </button>
+        <div className="mt-40 text-[8px] uppercase tracking-[1em] text-zinc-900 font-bold">
+           Future Self Protocol v2.1.0-Final
         </div>
-
-        <p className="mt-24 text-[8px] uppercase tracking-[0.8em] text-zinc-800 font-bold">Future Self Protocol v2.1.0-Phase2</p>
-      </section>
+      </motion.section>
     </div>
   );
 }

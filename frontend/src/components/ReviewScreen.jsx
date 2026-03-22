@@ -6,8 +6,21 @@ import SummaryGallery from './SummaryGallery';
 import EmotionalArcVisual from './EmotionalArcVisual';
 import PublicReviews from './PublicReviews';
 
-export default function ReviewScreen({ letters, coreDesire, archetype, profiles, history, apiKey, musicEnabled, toggleMusicEnabled, onReset }) {
-  const { toggleVoiceEnabled, voiceEnabled, isSpeaking, stopSpeaking } = useVoice();
+export default function ReviewScreen({ 
+  apiKey,
+  coreDesire, 
+  archetype, 
+  profiles, 
+  letters, 
+  sessionStats, 
+  emotionalArc,
+  musicEnabled, 
+  toggleMusicEnabled, 
+  voiceEnabled,
+  toggleVoiceEnabled,
+  onReset 
+}) {
+  const { isSpeaking, stopSpeaking } = useVoice();
   const haptic = (v = 30) => { if (navigator.vibrate) navigator.vibrate(v); };
   const [name, setName] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -45,7 +58,7 @@ export default function ReviewScreen({ letters, coreDesire, archetype, profiles,
     } catch (err) {
       setError('The system encountered a resistance. Try again later.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -141,10 +154,16 @@ export default function ReviewScreen({ letters, coreDesire, archetype, profiles,
           coreDesire={coreDesire} 
           archetype={archetype} 
           profiles={profiles} 
-          letters={letters}
-          stats={sessionStats}
+          letterActive={letters?.active}
+          letterPassive={letters?.passive}
+          sessionStats={sessionStats}
           emotionalArc={emotionalArc}
-          onProceed={() => {}} // Internal loop
+          onProceedToReview={() => {}}
+          onReset={onReset}
+          musicEnabled={musicEnabled}
+          toggleMusicEnabled={toggleMusicEnabled}
+          voiceEnabled={voiceEnabled}
+          toggleVoiceEnabled={toggleVoiceEnabled}
         />
 
         <div className="w-full max-w-xl bg-black/60 backdrop-blur-xl border border-[#c9a84c]/20 p-8 md:p-12 shadow-2xl my-24">

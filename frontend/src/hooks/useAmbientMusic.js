@@ -6,7 +6,7 @@ export function useAmbientMusic() {
   const gainRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(() => {
-    return localStorage.getItem('fs_musicEnabled') !== 'false'; // Default ON
+    return localStorage.getItem('fs_musicEnabled') !== 'false';
   });
 
   const createAmbientDrone = useCallback(() => {
@@ -15,11 +15,11 @@ export function useAmbientMusic() {
 
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 4); // Fade in over 4s (Increased from 0.12)
+    masterGain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 4);
     masterGain.connect(ctx.destination);
     gainRef.current = masterGain;
 
-    // Layer 1 — Deep sub drone (40Hz) — felt more than heard
+    // Layer 1 — Sub drone (40Hz)
     const sub = ctx.createOscillator();
     sub.type = 'sine';
     sub.frequency.setValueAtTime(40, ctx.currentTime);
@@ -29,13 +29,13 @@ export function useAmbientMusic() {
     subGain.connect(masterGain);
     sub.start();
 
-    // Layer 2 — Mid drone (80Hz) with slow LFO wobble
+    // Layer 2 — Mid drone (80Hz) with LFO wobble
     const mid = ctx.createOscillator();
     mid.type = 'sine';
     mid.frequency.setValueAtTime(80, ctx.currentTime);
     const lfo = ctx.createOscillator();
     lfo.type = 'sine';
-    lfo.frequency.value = 0.08; // Very slow wobble — 12 second cycle
+    lfo.frequency.value = 0.08;
     const lfoGain = ctx.createGain();
     lfoGain.gain.value = 0.8;
     lfo.connect(lfoGain);
@@ -47,16 +47,14 @@ export function useAmbientMusic() {
     mid.start();
     lfo.start();
 
-    // Layer 3 — High shimmer (320Hz) very quiet, adds air
+    // Layer 3 — Shimmer (320Hz) — DECLARE shimmerGain FIRST
     const shimmerGain = ctx.createGain();
     shimmerGain.gain.value = 0.04;
-
     const shimmer = ctx.createOscillator();
     shimmer.type = 'sine';
     shimmer.frequency.setValueAtTime(320, ctx.currentTime);
     shimmer.connect(shimmerGain);
     shimmerGain.connect(masterGain);
-
     const shimmerLfo = ctx.createOscillator();
     shimmerLfo.type = 'sine';
     shimmerLfo.frequency.value = 0.125;
@@ -64,11 +62,10 @@ export function useAmbientMusic() {
     shimmerLfoGain.gain.value = 0.02;
     shimmerLfo.connect(shimmerLfoGain);
     shimmerLfoGain.connect(shimmerGain);
-
     shimmer.start();
     shimmerLfo.start();
 
-    // Layer 4 — Reverb via convolver for depth
+    // Layer 4 — Reverb
     const convolver = ctx.createConvolver();
     const reverbLength = ctx.sampleRate * 3;
     const reverbBuffer = ctx.createBuffer(2, reverbLength, ctx.sampleRate);
@@ -91,20 +88,15 @@ export function useAmbientMusic() {
 
   const start = useCallback(() => {
     if (!musicEnabled || audioCtxRef.current) return;
-    try {
-      createAmbientDrone();
-    } catch (e) {
-      console.warn('Web Audio not supported:', e);
-    }
+    try { createAmbientDrone(); }
+    catch (e) { console.warn('Web Audio not supported:', e); }
   }, [musicEnabled, createAmbientDrone]);
 
   const stop = useCallback(() => {
     if (!audioCtxRef.current) return;
     const gain = gainRef.current;
     const ctx = audioCtxRef.current;
-    if (gain) {
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2); // Fade out over 2s
-    }
+    if (gain) gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
     setTimeout(() => {
       nodesRef.current.forEach(n => { try { n.stop(); } catch (e) {} });
       try { ctx.close(); } catch (e) {}
@@ -121,7 +113,6 @@ export function useAmbientMusic() {
     if (!newVal) stop();
   }, [musicEnabled, stop]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       nodesRef.current.forEach(n => { try { n.stop(); } catch (e) {} });

@@ -6,6 +6,9 @@ import ShareableCard from './ShareableCard';
 
 export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep3, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const cardRef = useRef(null);
+  const [showWallOptIn, setShowWallOptIn] = useState(false);
+  const [wallStatus, setWallStatus] = useState('idle');
+  const [resonance, setResonance] = useState(undefined);
   const { 
     speak, 
     stopSpeaking, 
@@ -19,7 +22,26 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
     if (voiceEnabled) {
       speak(`What you really want... is ${coreDesire}`, { rate: 0.68, pitch: 0.78, delay: 2500 });
     }
+    
+    const t = setTimeout(() => setShowWallOptIn(true), 10000);
+    return () => clearTimeout(t);
   }, []);
+
+  const handleAddToWall = async () => {
+    setWallStatus('submitting');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001'}/api/add-to-wall`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: coreDesire })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResonance(data.resonanceCount);
+      }
+    } catch (e) { console.error(e); }
+    setWallStatus('done');
+  };
 
   return (
     <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -84,6 +106,38 @@ export default function RevealScreen({ coreDesire, onProceedStep2, onProceedStep
            transition={{ duration: 2, delay: 5.5 }}
            className="mt-24 flex flex-col items-center gap-8"
         >
+          <AnimatePresence>
+            {showWallOptIn && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="w-full max-w-xl mx-auto overflow-hidden bg-black/40 border border-[#c9a84c]/20 p-8 backdrop-blur-md mb-8"
+              >
+                <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#c9a84c]/80 mb-6 font-bold">Leave your truth behind anonymously</p>
+                {wallStatus === 'idle' && (
+                  <div className="flex justify-center gap-6">
+                    <button onClick={handleAddToWall} className="text-[9px] md:text-[10px] tracking-[0.3em] uppercase bg-[#c9a84c] text-black px-8 py-3 hover:bg-white transition-all font-bold">
+                      Add to the Wall
+                    </button>
+                    <button onClick={() => setWallStatus('done')} className="text-[9px] md:text-[10px] tracking-[0.3em] uppercase border border-zinc-700 text-zinc-500 px-8 py-3 hover:text-white transition-all font-bold">
+                      Keep it private
+                    </button>
+                  </div>
+                )}
+                {wallStatus === 'submitting' && (
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/40 animate-pulse py-3">Carving into stone...</p>
+                )}
+                {wallStatus === 'done' && (
+                  <div className="py-2">
+                    <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#c9a84c]/60">
+                      {resonance !== undefined ? `Added. Your truth resonated with ${resonance} others.` : "Your truth belongs only to you."}
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <button 
             onClick={onProceedStep2}
             className="group relative px-16 py-4 bg-[#c9a84c] text-black transition-all duration-500 hover:bg-white active:scale-95"

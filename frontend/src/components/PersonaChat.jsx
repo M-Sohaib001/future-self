@@ -2,6 +2,24 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
+import CinematicLoader from './CinematicLoader';
+
+const SUGGESTIONS = {
+  passive: [
+    "What did I end up regretting most?",
+    "Did I eventually find peace?",
+    "When did I stop trying?",
+    "Who did I lose along the way?",
+    "What does my daily life look like to me now?"
+  ],
+  active: [
+    "What was the hardest choice I had to make?",
+    "Did the struggle actually pay off?",
+    "What am I most proud of now?",
+    "Who stood by me through the fire?",
+    "What remains of the person I used to be?"
+  ]
+};
 
 export default function PersonaChat({ 
   apiKey, 
@@ -184,12 +202,10 @@ export default function PersonaChat({
     <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-0 relative overflow-hidden">
       {!profiles && !error && (
         <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-[#050508]">
-           <p className="text-xl md:text-2xl tracking-[0.3em] uppercase text-zinc-400 mb-8 animate-pulse font-bold">Establishing Chronal Link...</p>
-           <div className="flex space-x-3">
-              <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0 }} />
-              <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0.4 }} />
-              <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0.8 }} />
-            </div>
+           <CinematicLoader 
+             texts={["Establishing chronal link", "Synchronising with present time", "Opening the channel"]} 
+             className="text-xl md:text-2xl tracking-[0.3em] uppercase text-[#c9a84c]/60 font-bold"
+           />
         </div>
       )}
       <BackgroundEffects />
@@ -304,12 +320,12 @@ export default function PersonaChat({
               ))}
               
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="flex space-x-2">
-                    <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]/50" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0 }} />
-                    <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]/50" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.3 }} />
-                    <motion.div className="w-2 h-2 rounded-full bg-[#c9a84c]/50" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }} />
-                  </div>
+                <div className="flex justify-start opacity-70">
+                  <CinematicLoader 
+                    texts={["The future is considering", "A memory surfaces", "Weighing the response"]} 
+                    interval={2000} 
+                    className="text-[9px] uppercase tracking-widest text-[#c9a84c]/60" 
+                  />
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -337,8 +353,35 @@ export default function PersonaChat({
         )}
 
         {/* Input Area */}
-        <div className="p-8 md:p-12 bg-black/60 backdrop-blur-xl border-t border-[#c9a84c]/10 shadow-[0_-10px_50px_rgba(0,0,0,0.5)]">
-          <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto group">
+        <div className="p-8 md:p-12 bg-black/60 backdrop-blur-xl border-t border-[#c9a84c]/10 shadow-[0_-10px_50px_rgba(0,0,0,0.5)] flex flex-col items-center w-full">
+          <AnimatePresence>
+            {currentHistory.length <= 1 && !isLoading && !error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="flex flex-wrap justify-center gap-3 mb-6 w-full max-w-3xl overflow-hidden"
+              >
+                {SUGGESTIONS[activeTab].map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (!isLoading) sendMessage(q);
+                    }}
+                    className={`text-[10px] md:text-xs tracking-[0.1em] px-4 py-2 border rounded-sm transition-all duration-500 backdrop-blur-md whitespace-nowrap ${
+                      activeTab === 'passive' 
+                        ? 'border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 bg-black/40' 
+                        : 'border-[#c9a84c]/20 text-[#c9a84c]/60 hover:text-[#c9a84c] hover:border-[#c9a84c]/60 bg-black/40'
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="relative max-w-2xl w-full mx-auto group">
             <input
               type="text"
               value={input}

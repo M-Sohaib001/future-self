@@ -9,6 +9,8 @@ import FinalLetter from './components/FinalLetter';
 import CharacterArchetype from './components/CharacterArchetype';
 import SummaryGallery from './components/SummaryGallery';
 import ReviewScreen from './components/ReviewScreen';
+import PauseScreen from './components/PauseScreen';
+import WallOfTruths from './components/WallOfTruths';
 import { useAmbientMusic } from './hooks/useAmbientMusic';
 import { useVoice } from './hooks/useVoice';
 import { clearSessions } from './utils/sessionMemory';
@@ -97,6 +99,7 @@ function App() {
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
           toggleVoiceEnabled={toggleVoiceEnabled}
+          onViewWall={() => setStep('wall')}
         />
       )}
       {step === 'onboarding' && (
@@ -187,12 +190,19 @@ function App() {
           socratesHistory={socratesHistory}
           personaHistoryActive={personaHistoryActive}
           personaHistoryPassive={personaHistoryPassive}
+          archetypeData={archetypeData}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
           voiceEnabled={voiceEnabled}
           toggleVoiceEnabled={toggleVoiceEnabled}
-          onProceedToReview={() => setStep('summary')}
+          onProceedToReview={() => setStep('pause')}
         />
+      )}
+      {step === 'pause' && (
+        <PauseScreen onContinue={() => setStep('summary')} />
+      )}
+      {step === 'wall' && (
+        <WallOfTruths onBack={() => setStep('disclaimer')} />
       )}
       {step === 'summary' && (
         <SummaryGallery
@@ -202,6 +212,10 @@ function App() {
           emotionalArc={emotionalArc}
           letterActive={sessionStorage.getItem('fs_letterActive')}
           letterPassive={sessionStorage.getItem('fs_letterPassive')}
+          letterArchetype={sessionStorage.getItem('fs_letterArchetype')}
+          writeBack={sessionStorage.getItem('fs_writeBack')}
+          checkIn={sessionStorage.getItem('fs_checkIn')}
+          reactions={(() => { try { return JSON.parse(localStorage.getItem('fs_reactions') || '[]'); } catch { return []; } })()}
           sessionStats={sessionStats}
           musicEnabled={musicEnabled}
           toggleMusicEnabled={toggleMusicEnabled}
@@ -209,6 +223,7 @@ function App() {
           toggleVoiceEnabled={toggleVoiceEnabled}
           onProceedToReview={() => setStep('review')}
           onReset={handleReset}
+          onViewWall={() => setStep('wall')}
         />
       )}
       {step === 'review' && (

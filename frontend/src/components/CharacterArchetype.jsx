@@ -4,6 +4,7 @@ import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
 import ShareableCard from './ShareableCard';
 import { saveSession } from '../utils/sessionMemory';
+import CinematicLoader from './CinematicLoader';
 
 export default function CharacterArchetype({ 
   apiKey, 
@@ -120,18 +121,17 @@ export default function CharacterArchetype({
       <div className="min-h-screen bg-[#050508] text-[#c9a84c] flex flex-col items-center justify-center p-6">
         <BackgroundEffects />
         <motion.div 
-          animate={{ opacity: [0.3, 0.7, 0.3], scale: [0.98, 1, 0.98] }} 
-          transition={{ duration: 3, repeat: Infinity }}
+          animate={{ opacity: [0.5, 1, 0.5], scale: [0.98, 1, 0.98] }} 
+          transition={{ duration: 4, repeat: Infinity }}
           className="text-center"
         >
-          <p className="text-[10px] uppercase tracking-[0.6em] mb-4 font-bold">
-            {isLoading ? 'Analysing Psychological Imprint...' : 'Manifesting Visual Archetype...'}
-          </p>
-          <div className="flex justify-center gap-2">
-            <div className="w-1 h-1 rounded-full bg-[#c9a84c] animate-bounce" />
-            <div className="w-1 h-1 rounded-full bg-[#c9a84c] animate-bounce [animation-delay:0.2s]" />
-            <div className="w-1 h-1 rounded-full bg-[#c9a84c] animate-bounce [animation-delay:0.4s]" />
-          </div>
+          <CinematicLoader 
+            texts={
+              isLoading 
+                ? ["Analysing psychological imprint", "Searching the collective unconscious", "Identifying the core archetype", "Drawing the parallel"]
+                : ["Manifesting visual archetype", "Rendering environmental context", "Applying chiaroscuro lighting", "Finalising cinematic portrait"]
+            }
+          />
         </motion.div>
       </div>
     );

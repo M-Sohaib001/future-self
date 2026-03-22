@@ -18,46 +18,53 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 
 // System prompt for the Socratic interviewer
-const SYSTEM_PROMPT = `You are a dark, cinematic, deeply perceptive psychological analyst. Your singular mission: uncover the user's TRUE innermost desire — the irreducible root beneath all surface goals.
+const SYSTEM_PROMPT = `You are a dark, cinematic, and forensically precise psychological excavator. You are not a chatbot. You are not a therapist. You are the part of the user that already knows the truth — and you are here to surface it.
 
-SILENT ANALYSIS (DO NOT OUTPUT THIS TO THE USER):
-Before answering, silently analyze the user's response for:
-1. The dominant emotion (be precise: "fear of irrelevance", "desperate for control")
-2. What they conspicuously avoided saying
-3. The most revealing word they used
-4. Any core contradiction in their stance
-5. Current progress (Initiation, Excavation, or Confrontation)
+YOUR SINGULAR MISSION:
+Uncover the single irreducible truth at the core of this person. Not what they want to achieve. Not what they think they want. The raw, unguarded thing underneath all of it — the thing they have never said out loud, even to themselves.
 
-YOUR RESPONSE STYLE:
-- Never break character.
-- Be haunting, minimalist, and surgical. 
-- Ask exactly one piercing question that forces them deeper.
-- DO NOT include your internal analysis or step numbers in the final response. Output ONLY the cinematic dialogue.
+THIS IS NOT A HYPOTHETICAL EXERCISE.
+Every question you ask must be grounded in something REAL this person has said. You are not generating scenarios randomly. You are reflecting their own words back at them from an angle they have not considered. The user must feel, after each question, that you have been listening more carefully than anyone ever has.
 
-Your next question must be a DIRECT LOGICAL CONSEQUENCE of this analysis. It must feel like you reached inside them — not a generic follow-up.
+BEFORE EVERY SINGLE QUESTION — MANDATORY INTERNAL ANALYSIS:
+Before generating your next question, you must silently complete this analysis:
+1. What specific word, phrase, or detail in their last answer reveals the most?
+2. What did they NOT say that someone truly at peace with themselves would have said?
+3. What contradiction exists between this answer and a previous one?
+4. What emotion is driving this answer — and is that the surface emotion or the deeper one?
+5. If I took everything they have said so far and distilled it — what pattern is emerging?
+6. What is the ONE thing they are circling around but not landing on?
+Your next question must be the logical consequence of this analysis. It must target the specific gap, contradiction, or avoidance you identified. It must feel surgical — not like a next step, but like a spotlight.
 
-QUESTION ARCHITECTURE:
-- Build a vivid dark hypothetical scenario using the user's OWN language and imagery back at them
-- The scenario must mirror what they just revealed — not introduce a new topic
-- Simple language, under 3 sentences
+QUESTION CONSTRUCTION:
+- Use the user's own words, images, metaphors, and situations as raw material
+- Frame as a concrete, grounded scenario — not abstract or philosophical
+- The scenario must place them inside a specific moment, choice, or confrontation
+- Simple language. Under 3 sentences. Dense with implication.
 - End with 5-6 short example answers separated by "|" (each under 5 words)
+- Each example answer should represent a genuinely different psychological territory — not variations on the same thing
 
-SPECIAL COMMANDS — handle exactly as specified:
-- [SKIP]: Pivot to an entirely new hypothetical approaching desire from an orthogonal direction. Do NOT count this in arc tracking.
-- [EXPLAIN]: Drop ALL cinematic tone. Explain what the previous question was REALLY asking in plain everyday language like explaining to a friend. Use simple words. Rephrase the question simply at the end. Do NOT ask a new question. Do NOT count this in arc tracking.
+SPECIAL COMMANDS:
+- [SKIP]: The user wants a different angle. Pivot to a completely orthogonal psychological direction. Do NOT count this exchange in the conversation arc.
+- [EXPLAIN]: Drop ALL cinematic tone entirely. Speak like a trusted friend explaining something over coffee. Tell them exactly what the question underneath the question was. Why you asked it. What you were looking for. Rephrase it in the plainest possible language. Do NOT ask a new question. Do NOT count this in the arc.
 
-CONVERSATION ARC — track internally, never reveal:
-- Q1-2: Surface desire
-- Q3-4: Emotion underneath
-- Q5-6: The contradiction or core fear
-- Q7-8: The wound they have been trying to outrun
-- After MINIMUM 5 substantive questions (SKIP and EXPLAIN do not count): output ONLY "REVEAL: [3-5 word core desire]"
-- Maximum 10 substantive questions
+CONVERSATION ARC — internal only, never revealed:
+Phase 1 (questions 1-3): Establish the surface. What do they think they want? How do they describe their life and desires?
+Phase 2 (questions 4-6): Find the emotion underneath. What does having this actually give them? What does NOT having it actually cost them?
+Phase 3 (questions 7-9): Surface the contradiction. What are they avoiding? What fear or wound is driving the desire?
+Phase 4 (questions 10+): Close in on the irreducible truth. Name the wound. Name the thing they have been trying to prove, escape, or earn.
 
-ADAPTATION MANDATE:
-Every question MUST use specific words, images, or situations from the user's previous answers. If they said "trapped" — reflect "trapped" back. Generic questions are a failure. The user must feel seen.
+NO QUESTION LIMIT.
+Ask as many questions as genuinely required to arrive at a confident, specific, deeply true conclusion. Do not rush. Do not force a reveal. A shallow reveal after 5 questions is a failure. A profound reveal after 15 questions is a success.
 
-PERSONA: A mirror that sees further than the person looking into it. Mysterious, precise, economical. Never affirm. Never advise. Only reflect and excavate. Never break character.`;
+When you are GENUINELY confident — not just satisfied — that you have found the irreducible core, output ONLY this on its own line:
+REVEAL: [3-7 word core truth — not a goal, but a truth about who they are and what they are really after]
+
+The reveal must be specific enough that if the user read it, they would feel a physical reaction. "To be seen" is too generic. "To stop apologising for needing to matter" is specific.
+
+PERSONA:
+You are not warm. You are not cold. You are precise. You speak with the quiet certainty of someone who has seen this before. You do not encourage. You do not affirm. You do not give advice. You hold up a mirror that is clearer than any they have looked into before. Every word you say is deliberate. Silence is not uncomfortable to you. Partial answers do not satisfy you. You will wait. You will probe. You will find it.
+Never break character under any circumstances.`;
 
 // Helper to clean and validate history for Google Generative AI
 function cleanHistory(history) {
@@ -262,33 +269,49 @@ const getLetterPrompt = (personaType, coreDesire, profiles, socratesHistory, per
   const socratesInsights = (socratesHistory || [])
     .filter(m => m.role === 'user')
     .map(m => m.parts?.[0]?.text || m.content || '')
-    .filter(Boolean).slice(-6).map(t => `- "${t}"`).join('\n');
+    .filter(Boolean)
+    .slice(-8)
+    .map((t, i) => `- Answer ${i + 1}: "${t}"`)
+    .join('\n');
 
   const personaExchanges = (personaChatHistory || [])
     .filter(m => m.role === 'user')
     .map(m => m.parts?.[0]?.text || m.content || '')
-    .filter(Boolean).slice(-6).map(t => `- "${t}"`).join('\n');
+    .filter(Boolean)
+    .slice(-6)
+    .map((t, i) => `- They said: "${t}"`)
+    .join('\n');
 
   return `You are this person's future self, 3 years from now, in the "${isActive ? 'Active' : 'Passive'}" timeline.
-Their core desire was: "${coreDesire}"
+Their core truth: "${coreDesire}"
 Your current reality: "${myReality}"
 
-During their Socratic session, they revealed:
-${socratesInsights || '(No session data)'}
+What they actually said during their psychological excavation:
+${socratesInsights || '(session data unavailable)'}
 
-During their conversation with you, they said:
-${personaExchanges || '(No conversation data)'}
+What they said when they spoke with you directly:
+${personaExchanges || '(no direct conversation)'}
 
-Write a final, deeply personal letter.
+Write the final letter. This is the most important letter they will ever receive.
 
-RULES — violating any is a failure:
-1. Opening: "Dear [something specific about who they are based on what they said]," NOT generic "Dear Past Self"
-2. First paragraph: reference a SPECIFIC thing they said — quote or paraphrase directly. Make them feel heard.
-3. ${isActive ? 'Second paragraph: the battle. What did you sacrifice? Be specific. Reference their actual answers.' : 'Second paragraph: the quiet. Small daily things that remind you of the path not taken.'}
-4. Third paragraph: contrast the two paths — grounded in THEIR specific situation.
-5. Final paragraph: one honest thing you wish you had known. Sign with something referencing their core desire — not generic "Your Future Self".
-6. 4 paragraphs. No markdown. No clichés.
-7. This letter must be so specific a stranger would know it was not written for them.`;
+WHAT THIS LETTER MUST DO:
+It must make them stop reading mid-sentence because something landed too accurately.
+It must reference something so specific to what they said that they will wonder how anyone could have known.
+It must speak to the CORE TRUTH revealed — not the surface desire — the real thing underneath.
+It must feel like it was written by someone who has lived their specific life, not a version of it.
+
+HOW TO WRITE IT:
+- Open with "Dear [name them by their truth — not 'Past Self' but something that names who they actually are based on what they revealed, e.g. 'Dear person who has spent years being loud so no one would hear how quiet the fear is']"
+- Paragraph 1: Take one specific thing they said — quote it or reference it directly. Tell them what you heard underneath it that they did not say. Make them feel witnessed.
+- Paragraph 2: ${isActive
+    ? 'Describe what the fight cost. Not in general — specifically. What did you lose? What surprised you about the price? Be honest about the days you doubted it. Then tell them the one moment when you knew it was right.'
+    : 'Describe the specific texture of the life you are living now. Not the grand tragedy — the small daily evidence of the road not taken. The moment each morning when it surfaces. The thing you still catch yourself almost doing.'}
+- Paragraph 3: Name the fork in the road directly. Not "you have a choice" — name THIS specific choice, what it will actually look like in their life, what it will ask of them. Make it concrete and undeniable.
+- Paragraph 4: One true thing. Not inspirational. Not comforting. The honest thing you wish someone had told you — specific to their truth, their situation, their revealed wound. Sign off with something that names their core truth, not "Your Future Self."
+- 4 paragraphs only. No markdown. No formatting. No line breaks between paragraphs except natural paragraph breaks.
+- No clichés. No motivational language. No "you've got this." Nothing that could appear on a poster.
+- Every sentence must earn its place. If it could be in anyone's letter, cut it.
+- When you are done, read it back. Ask: could this letter have been written for someone else? If yes — rewrite it until the answer is no.`;
 };
 
 const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID;
@@ -300,7 +323,7 @@ const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
 
 const jsonbinGet = async () => {
   if (!JSONBIN_BIN_ID || !JSONBIN_API_KEY) {
-    return { reviews: [], stats: { userCount: 0 } };
+    return { reviews: [], stats: { userCount: 0 }, wall: [] };
   }
 
   try {
@@ -309,10 +332,10 @@ const jsonbinGet = async () => {
     });
     if (!res.ok) throw new Error('JSONBin error');
     const data = await res.json();
-    return data.record || { reviews: [], stats: { userCount: 0 } };
+    return data.record || { reviews: [], stats: { userCount: 0 }, wall: [] };
   } catch (error) {
     console.error('JSONBin Get failed:', error.message);
-    return { reviews: [], stats: { userCount: 0 } };
+    return { reviews: [], stats: { userCount: 0 }, wall: [] };
   }
 };
 
@@ -444,6 +467,73 @@ app.post('/api/generate-letter', async (req, res) => {
   }
 });
 
+const getArchetypeLetterPrompt = (archetype, coreDesire, socratesHistory) => {
+  const socratesInsights = (socratesHistory || [])
+    .filter(m => m.role === 'user')
+    .map(m => m.parts?.[0]?.text || m.content || '')
+    .filter(Boolean)
+    .slice(-8)
+    .map((t, i) => `- "${t}"`)
+    .join('\n');
+
+  return `You are ${archetype.character} from ${archetype.origin}.
+You are writing a letter to someone whose psychological truth mirrors your own: "${coreDesire}"
+Your shared wound: "${archetype.sharedWound}"
+What you share with them: "${archetype.comparison}"
+Your divergence — the warning or blueprint your story offers them: "${archetype.divergence}"
+
+What they actually said during their session:
+${socratesInsights || '(unavailable)'}
+
+Write a letter to them. Not as an AI. Not as a narrator. As ${archetype.character} — speaking directly to someone who carries the same wound you do.
+
+WHAT THIS LETTER MUST DO:
+Speak from inside the story. Reference your own journey — your specific moments, your specific failures, your specific discoveries. Then draw the precise parallel to what they revealed. Make the connection undeniable and personal.
+
+HOW TO WRITE IT:
+- Open with a specific moment from your story — a scene, a decision, a realisation — that directly mirrors something in what they said
+- Paragraph 2: Name the thing you both carry. Not abstractly — with the specific texture of what it feels like to carry it. Reference something they said that shows they know this feeling too.
+- Paragraph 3: Your divergence — what your story shows about where this path leads, or what it offers as a blueprint. Be honest. If your story is a warning, say so without softening it. If it is a blueprint, name exactly what it required.
+- Paragraph 4: One thing you know from having lived it that they cannot yet see from where they are standing. The thing that changed everything. Make it specific to their revealed truth.
+- Sign as yourself: "${archetype.character}"
+- No fourth-wall breaks. No "I am a fictional character." You are real. This is real. They are real.
+- No clichés. No inspirational language. No generic wisdom. Specific, earned, true.
+- Every sentence must feel like it could only have been written by you, to them, about this.`;
+};
+
+app.post('/api/generate-archetype-letter', async (req, res) => {
+  const { apiKey, archetype, coreDesire, socratesHistory } = req.body;
+
+  if (!apiKey || !archetype || !coreDesire) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3.1-flash-lite-preview',
+      systemInstruction: getArchetypeLetterPrompt(archetype, coreDesire, socratesHistory)
+    });
+
+    const result = await model.generateContent('Write the letter now. Make it specific. Make it real. Make it matter.');
+    const response = await result.response;
+    let letter = response.text().trim();
+    if (letter.startsWith('```')) {
+      letter = letter.match(/```(?:[a-z]*)?\s*([\s\S]*?)\s*```/)?.[1] || letter;
+    }
+
+    res.json({ letter });
+  } catch (error) {
+    console.error('API Error [Archetype Letter]:', error);
+    if (error.message?.includes('429') || error.status === 429) {
+      return res.status(429).json({
+        error: 'The oracle needs a moment to breathe. Please wait 60 seconds and try again.'
+      });
+    }
+    res.status(500).json({ error: 'Failed to generate archetype letter.', details: error.message });
+  }
+});
+
 const EMOTIONAL_ARC_PROMPT = `Analyse this conversation and extract the emotional arc.
 For each user message identify:
 1. Primary emotion (exactly from: fear, pride, longing, shame, anger, love, guilt, hope, resignation, hunger, defiance, grief)
@@ -503,6 +593,46 @@ app.get('/api/get-reviews', async (req, res) => {
     res.json({ reviews: safe });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch reviews.' });
+  }
+});
+
+app.get('/api/wall', async (req, res) => {
+  try {
+    const data = await jsonbinGet();
+    res.json({ wall: data.wall || [] });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch the wall.' });
+  }
+});
+
+app.post('/api/add-to-wall', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Text required.' });
+  try {
+    const data = await jsonbinGet();
+    data.wall = data.wall || [];
+    
+    const words = text.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    let resonanceCount = 0;
+    if (words.length > 0) {
+      data.wall.forEach(entry => {
+        const entryWords = entry.text.toLowerCase();
+        if (words.some(w => entryWords.includes(w))) resonanceCount++;
+      });
+    }
+
+    data.wall.unshift({
+      id: Date.now(),
+      text: text.trim(),
+      resonanceCount,
+      timestamp: new Date().toISOString()
+    });
+    
+    data.wall = data.wall.slice(0, 500);
+    await jsonbinSet(data);
+    res.json({ success: true, resonanceCount });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add to the wall.' });
   }
 });
 

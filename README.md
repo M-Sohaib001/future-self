@@ -58,6 +58,11 @@ npm run dev                 # → http://localhost:5173
 - Add env var: `VITE_API_URL` → your deployed backend URL
 - `vercel.json` handles SPA routing
 
+## Features (Phase 2.3)
+- **Wall of Human Truths**: A global anonymous ledger of users' core desires, calculating resonance across entries.
+- **Cinematic Enhancements**: 7-second teaser trailer on load, dynamic visual Depth Pulse indicator, internal ambient background coloring, and rotating cinematic loaders.
+- **Community Mechanics**: "This Hit" micro-reactions during excavation, "Write Back" replies to Future Selves, tappable chat suggestions, and monthly returning user check-ins.
+
 ## API Endpoints
 
 | Method | Path | Description |
@@ -73,6 +78,8 @@ npm run dev                 # → http://localhost:5173
 | GET | `/api/get-reviews` | Fetch public reviews |
 | POST | `/api/increment-stats` | Increment user counter |
 | GET | `/api/get-stats` | Get total user count |
+| POST | `/api/add-to-wall` | Add an anonymous truth to the global wall |
+| GET | `/api/wall` | Fetch the public wall of truths |
 
 ## Tech Stack
 - **Frontend**: React, Vite, Tailwind CSS, Framer Motion, html2canvas, lucide-react

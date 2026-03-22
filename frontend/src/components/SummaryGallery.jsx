@@ -8,7 +8,8 @@ import { useVoice } from '../hooks/useVoice';
 
 export default function SummaryGallery({ 
   coreDesire, archetype, profiles, emotionalArc, 
-  letterActive, letterPassive, sessionStats, 
+  letterActive, letterPassive, letterArchetype, sessionStats, 
+  writeBack, checkIn, reactions, onViewWall,
   musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled, 
   onProceedToReview, onReset 
 }) {
@@ -20,6 +21,7 @@ export default function SummaryGallery({
   const archetypeCardRef = useRef();
   const letterActiveGalleryRef = useRef();
   const letterPassiveGalleryRef = useRef();
+  const letterArchetypeGalleryRef = useRef();
 
   const fontOptions = [
     { id: 'serif', label: 'Serif', class: 'font-serif font-light' },
@@ -81,6 +83,17 @@ export default function SummaryGallery({
         <p className="text-xs zinc-700 uppercase tracking-widest opacity-50">
           {sessionStats?.duration || '?'} minutes of unravelling
         </p>
+
+        {reactions?.length > 0 && (
+          <p className="text-[10px] md:text-xs text-zinc-700 uppercase tracking-widest mt-4">
+            {reactions.length} questions landed
+          </p>
+        )}
+        {checkIn && (
+          <p className="text-[10px] md:text-xs text-[#c9a84c]/60 uppercase tracking-widest mt-2 border border-[#c9a84c]/20 inline-block px-4 py-2 mt-4">
+            When you returned, you said this still felt: {checkIn}
+          </p>
+        )}
 
         <h1 className="text-6xl md:text-8xl lg:text-9xl text-[#c9a84c] font-bold mt-20 tracking-tighter drop-shadow-[0_0_30px_rgba(201,168,76,0.2)]">
           {coreDesire}
@@ -260,46 +273,130 @@ export default function SummaryGallery({
                  <ShareableCard cardRef={letterActiveGalleryRef} filename="FutureSelf_Letter_Architect.png" text={letterActive} shareTitle="A Letter from my Future Self — The Architect" />
               </div>
             </div>
+
+            {/* The Mirror — Archetype Letter */}
+            {letterArchetype && archetype && (
+              <div className="flex-1 flex flex-col items-center">
+                <div ref={letterArchetypeGalleryRef} className="bg-black/90 border border-white/5 p-12 lg:p-16 shadow-2xl relative w-full h-full min-h-[600px] flex flex-col"
+                  style={{ borderTop: `1px solid ${archetype?.palette?.accent || '#c9a84c'}33` }}>
+                   <div className="absolute top-6 left-6 text-[8px] uppercase tracking-widest" style={{ color: `${archetype?.palette?.accent || '#c9a84c'}99` }}>
+                     The Mirror
+                   </div>
+                   
+                   {/* Avatar */}
+                   <div className="relative h-24 mb-6 mt-4 overflow-hidden rounded-sm w-full" style={{ background: `linear-gradient(135deg, ${archetype?.palette?.primary || '#c9a84c'}22, transparent)` }}>
+                     <img
+                       src={`https://image.pollinations.ai/prompt/${encodeURIComponent(
+                         `cinematic avatar portrait, ${archetype.character} from ${archetype.origin}, ${archetype.mood} atmosphere, oil painting, dramatic lighting, colour palette dominated by ${archetype.palette?.primary || '#c9a84c'}, no text, no watermark, close crop`
+                       )}?width=600&height=200&nologo=true`}
+                       alt={archetype.character}
+                       className="w-full h-full object-cover opacity-50"
+                       onError={(e) => { e.target.style.display = 'none'; }}
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
+                     <p className="absolute bottom-2 left-2 text-xs font-light" style={{ color: archetype?.palette?.primary || '#c9a84c' }}>
+                       {archetype?.character}
+                     </p>
+                   </div>
+
+                   <div className={`whitespace-pre-wrap leading-loose ${fontOptions.find(f => f.id === letterFont).class} text-zinc-300 text-sm lg:text-base flex-1`}>
+                     {letterArchetype}
+                   </div>
+                   <div className="absolute top-0 right-0 w-8 h-8 border-t border-r" style={{ borderColor: `${archetype?.palette?.accent || '#c9a84c'}40` }} />
+                </div>
+                <div className="flex gap-4 mt-8">
+                   <button onClick={() => speak(letterArchetype)} className="text-[9px] uppercase tracking-widest text-zinc-500 hover:text-white transition-all underline decoration-zinc-800 underline-offset-8">Read Aloud</button>
+                   <ShareableCard cardRef={letterArchetypeGalleryRef} filename={`FutureSelf_Letter_${archetype?.character?.replace(/\s+/g,'_')}.png`} text={letterArchetype} shareTitle={`A Letter from ${archetype?.character}`} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Mobile View */}
           <div className="md:hidden">
-            <div className="flex border-b border-zinc-900 mb-8">
+            <div className="flex flex-wrap border-b border-zinc-900 mb-8 w-full">
               <button 
                 onClick={() => setActiveLetterTab('passive')}
-                className={`flex-1 py-4 text-[10px] uppercase tracking-[0.3em] transition-all ${activeLetterTab === 'passive' ? 'text-zinc-200 border-b border-white' : 'text-zinc-700'}`}
+                className={`flex-1 py-4 text-[9px] md:text-[10px] uppercase tracking-[0.2em] transition-all text-center ${activeLetterTab === 'passive' ? 'text-zinc-200 border-b border-white' : 'text-zinc-700'}`}
               >
                 The Ghost
               </button>
               <button 
                 onClick={() => setActiveLetterTab('active')}
-                className={`flex-1 py-4 text-[10px] uppercase tracking-[0.3em] transition-all ${activeLetterTab === 'active' ? 'text-[#c9a84c] border-b border-[#c9a84c]' : 'text-zinc-700'}`}
+                className={`flex-1 py-4 text-[9px] md:text-[10px] uppercase tracking-[0.2em] transition-all text-center ${activeLetterTab === 'active' ? 'text-[#c9a84c] border-b border-[#c9a84c]' : 'text-zinc-700'}`}
               >
                 The Architect
               </button>
+              {letterArchetype && (
+                <button 
+                  onClick={() => setActiveLetterTab('archetype')}
+                  className={`flex-1 py-4 text-[9px] md:text-[10px] uppercase tracking-[0.2em] transition-all text-center ${activeLetterTab === 'archetype' ? 'text-white border-b border-white' : 'text-zinc-700'}`}
+                  style={activeLetterTab === 'archetype' ? { color: archetype?.palette?.primary || '#fff', borderColor: archetype?.palette?.primary || '#fff' } : {}}
+                >
+                  The Mirror
+                </button>
+              )}
             </div>
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center w-full">
               <div 
-                ref={activeLetterTab === 'active' ? letterActiveGalleryRef : letterPassiveGalleryRef} 
-                className={`w-full p-8 border ${activeLetterTab === 'active' ? 'bg-[#c9a84c]/[0.03] border-[#c9a84c]/30' : 'bg-black/60 border-zinc-800'}`}
+                ref={activeLetterTab === 'active' ? letterActiveGalleryRef : activeLetterTab === 'passive' ? letterPassiveGalleryRef : letterArchetypeGalleryRef} 
+                className={`w-full p-6 md:p-8 border ${activeLetterTab === 'active' ? 'bg-[#c9a84c]/[0.03] border-[#c9a84c]/30' : activeLetterTab === 'passive' ? 'bg-black/60 border-zinc-800' : 'bg-black/90 border-white/10'}`}
               >
-                <div className={`whitespace-pre-wrap leading-[2] text-sm italic ${fontOptions.find(f => f.id === letterFont).class} ${activeLetterTab === 'active' ? 'text-[#c9a84c]' : 'text-zinc-400'}`}>
-                  {activeLetterTab === 'active' ? letterActive : letterPassive}
+                {activeLetterTab === 'archetype' && archetype && (
+                   <div className="relative h-24 mb-6 overflow-hidden rounded-sm w-full" style={{ background: `linear-gradient(135deg, ${archetype?.palette?.primary || '#c9a84c'}22, transparent)` }}>
+                     <img
+                       src={`https://image.pollinations.ai/prompt/${encodeURIComponent(
+                         `cinematic avatar portrait, ${archetype.character} from ${archetype.origin}, ${archetype.mood} atmosphere, oil painting, dramatic lighting, colour palette dominated by ${archetype.palette?.primary || '#c9a84c'}, no text, no watermark, close crop`
+                       )}?width=600&height=200&nologo=true`}
+                       alt={archetype.character}
+                       className="w-full h-full object-cover opacity-50"
+                       onError={(e) => { e.target.style.display = 'none'; }}
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
+                     <p className="absolute bottom-2 left-2 text-xs font-light" style={{ color: archetype?.palette?.primary || '#c9a84c' }}>
+                       {archetype?.character}
+                     </p>
+                   </div>
+                )}
+                
+                <div className={`whitespace-pre-wrap leading-[2] text-sm italic ${fontOptions.find(f => f.id === letterFont).class} ${activeLetterTab === 'active' ? 'text-[#c9a84c]' : activeLetterTab === 'passive' ? 'text-zinc-400' : 'text-zinc-300'}`}>
+                  {activeLetterTab === 'active' ? letterActive : activeLetterTab === 'passive' ? letterPassive : letterArchetype}
                 </div>
               </div>
               <div className="flex gap-4 mt-8">
-                 <button onClick={() => speak(activeLetterTab === 'active' ? letterActive : letterPassive)} className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Read Aloud</button>
+                 <button onClick={() => speak(activeLetterTab === 'active' ? letterActive : activeLetterTab === 'passive' ? letterPassive : letterArchetype)} className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Read Aloud</button>
                  <ShareableCard 
-                    cardRef={activeLetterTab === 'active' ? letterActiveGalleryRef : letterPassiveGalleryRef} 
-                    filename={`FutureSelf_Letter_${activeLetterTab}.png`} 
-                    text={activeLetterTab === 'active' ? letterActive : letterPassive} 
-                    shareTitle={`Letter from my Future Self — ${activeLetterTab}`} 
+                    cardRef={activeLetterTab === 'active' ? letterActiveGalleryRef : activeLetterTab === 'passive' ? letterPassiveGalleryRef : letterArchetypeGalleryRef} 
+                    filename={`FutureSelf_Letter_${activeLetterTab === 'archetype' ? archetype?.character?.replace(/\s+/g,'_') : activeLetterTab}.png`} 
+                    text={activeLetterTab === 'active' ? letterActive : activeLetterTab === 'passive' ? letterPassive : letterArchetype} 
+                    shareTitle={activeLetterTab === 'archetype' ? `Letter from ${archetype?.character}` : `Letter from my Future Self — ${activeLetterTab === 'active' ? 'The Architect' : 'The Ghost'}`} 
                   />
               </div>
             </div>
           </div>
         </div>
       </motion.section>
+
+      {writeBack && (
+        <>
+          <Divider />
+          <motion.section 
+            initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={sectionVariants}
+            className="max-w-4xl mx-auto px-6 mb-24"
+          >
+            <div className="bg-[#c9a84c]/5 border border-[#c9a84c]/20 p-12 lg:p-16 relative w-full shadow-2xl overflow-hidden">
+               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent,_rgba(0,0,0,0.6))]" />
+               <div className="absolute top-6 left-6 text-[8px] uppercase tracking-widest text-[#c9a84c]/60">Your Reply Through Time</div>
+               <div className="absolute top-0 right-0 w-8 h-8 border-t border-r border-[#c9a84c]/40" />
+               <div className="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-[#c9a84c]/40" />
+               
+               <div className="relative z-10 whitespace-pre-wrap leading-loose font-serif font-light text-[#c9a84c]/90 text-sm md:text-base lg:text-xl italic mt-8 text-center px-4">
+                 "{writeBack}"
+               </div>
+            </div>
+          </motion.section>
+        </>
+      )}
 
       <Divider />
 
@@ -334,8 +431,17 @@ export default function SummaryGallery({
              Begin Again
            </button>
         </div>
+
+        <div className="mt-8">
+           <button 
+             onClick={onViewWall}
+             className="text-[10px] uppercase tracking-[0.4em] text-zinc-700 hover:text-zinc-500 transition-all border-b border-transparent hover:border-zinc-600 pb-1"
+           >
+             See the wall of truths
+           </button>
+        </div>
         
-        <div className="mt-40 text-[8px] uppercase tracking-[1em] text-zinc-900 font-bold">
+        <div className="mt-32 text-[8px] uppercase tracking-[1em] text-zinc-900 font-bold">
            Future Self Protocol v2.1.0-Final
         </div>
       </motion.section>

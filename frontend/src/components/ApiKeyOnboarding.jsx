@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
@@ -7,6 +7,12 @@ import { useVoice } from '../hooks/useVoice';
 export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [apiKey, setApiKey] = useState('');
   const [showGuide, setShowGuide] = useState(false);
+  const [showTeaser, setShowTeaser] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowTeaser(false), 7000);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -16,8 +22,47 @@ export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEna
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      <BackgroundEffects />
+    <>
+      <AnimatePresence>
+        {showTeaser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="min-h-screen bg-[#050508] font-serif flex flex-col items-center justify-center p-6 relative overflow-hidden text-center fixed inset-0 z-50"
+          >
+            <BackgroundEffects />
+            <div className="relative z-10 max-w-2xl space-y-12">
+              {[
+                { delay: 0.5, text: "In the next few minutes, an oracle will ask you questions no one has ever asked you." },
+                { delay: 2.5, text: "It will find something true about you." },
+                { delay: 4.5, text: "Then it will show you what happens next — in both directions." }
+              ].map((line, i) => (
+                <motion.p key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: line.delay, duration: 1.5 }}
+                  className="text-xl md:text-3xl font-light text-zinc-300 leading-relaxed tracking-wide">
+                  {line.text}
+                </motion.p>
+              ))}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 6, duration: 1 }}
+                onClick={() => setShowTeaser(false)}
+                className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/60 hover:text-[#c9a84c] transition-all border-b border-transparent hover:border-[#c9a84c]/40 pb-1"
+              >
+                I'm ready
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!showTeaser && (
+        <div className="min-h-screen bg-[#0a0a0f] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-4 relative overflow-hidden">
+          <BackgroundEffects />
       
       {/* Fixed top-right controls */}
       <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
@@ -117,6 +162,8 @@ export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEna
           </AnimatePresence>
         </div>
       </motion.div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

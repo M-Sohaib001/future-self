@@ -3,12 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 import BackgroundEffects from './BackgroundEffects';
 import { getLatestSession } from '../utils/sessionMemory';
 
-export default function DisclaimerScreen({ onAcknowledge, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
+export default function DisclaimerScreen({ onAcknowledge, onViewWall, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [userCount, setUserCount] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const initializedRef = useRef(false);
   
   const lastSession = getLatestSession();
+  const daysSince = lastSession ? Math.floor((Date.now() - new Date(lastSession.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  const isMonthlyReturn = lastSession && daysSince >= 30;
+
+  const [checkIn, setCheckIn] = useState('');
+  const [showCheckIn] = useState(isMonthlyReturn && !sessionStorage.getItem('fs_checkIn'));
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -53,10 +58,27 @@ export default function DisclaimerScreen({ onAcknowledge, musicEnabled, toggleMu
           <h2 className="text-2xl md:text-4xl font-light mb-4 text-zinc-300">Last time, you discovered you wanted</h2>
           <p className="text-4xl md:text-7xl text-[#c9a84c] font-bold my-8 drop-shadow-[0_0_20px_rgba(201,168,76,0.3)]">{lastSession.coreDesire}</p>
           {lastSession.archetypeName && (
-            <p className="text-zinc-600 text-xs tracking-[0.3em] uppercase mb-16 font-bold">
+            <p className="text-zinc-600 text-xs tracking-[0.3em] uppercase mb-12 font-bold">
               Your mirror was {lastSession.archetypeName} — {lastSession.archetypeOrigin}
             </p>
           )}
+
+          {showCheckIn && (
+            <div className="mb-12 border-t border-b border-[#c9a84c]/20 py-8 px-4 bg-black/40">
+              <p className="text-sm tracking-[0.2em] uppercase text-[#c9a84c]/80 mb-6">It has been {daysSince} days.</p>
+              <textarea
+                value={checkIn}
+                onChange={(e) => {
+                  setCheckIn(e.target.value);
+                  sessionStorage.setItem('fs_checkIn', e.target.value);
+                }}
+                placeholder="How does that truth feel now? Did you act on it?"
+                className="w-full bg-transparent border-b border-zinc-700 p-4 text-center text-zinc-300 focus:outline-none focus:border-[#c9a84c] resize-none"
+                rows={2}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col items-center gap-6">
             <button onClick={onAcknowledge} className="px-12 py-4 border border-[#c9a84c]/40 hover:border-[#c9a84c] text-xs uppercase tracking-[0.4em] transition-all text-[#c9a84c] hover:bg-[#c9a84c]/5 active:scale-95">
               Begin Again — I May Have Changed
@@ -123,9 +145,17 @@ export default function DisclaimerScreen({ onAcknowledge, musicEnabled, toggleMu
           </button>
           
           {userCount !== null && (
-            <p className="text-[10px] text-zinc-700 tracking-[0.4em] uppercase font-bold">
-              {userCount.toLocaleString()} futures revealed so far
-            </p>
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-[10px] text-zinc-700 tracking-[0.4em] uppercase font-bold">
+                {userCount.toLocaleString()} futures revealed so far
+              </p>
+              <button 
+                onClick={onViewWall}
+                className="text-[9px] uppercase tracking-[0.3em] text-zinc-600 hover:text-[#c9a84c] transition-all border-b border-transparent hover:border-[#c9a84c]/50 pb-1"
+              >
+                See what others have discovered →
+              </button>
+            </div>
           )}
         </motion.div>
       </div>

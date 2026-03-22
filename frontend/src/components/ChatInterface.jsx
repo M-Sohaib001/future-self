@@ -10,6 +10,11 @@ export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate,
   const [error, setError] = useState('');
   const [substantiveCounter, setSubstantiveCounter] = useState(0);
   const [typewriterIndex, setTypewriterIndex] = useState(-1);
+  const [openingInput, setOpeningInput] = useState('');
+  const [openingSubmitted, setOpeningSubmitted] = useState(false);
+  const [reactions, setReactions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fs_reactions') || '[]'); } catch { return []; }
+  });
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const haptic = (v = [30]) => { if (navigator.vibrate) navigator.vibrate(v); };
@@ -44,9 +49,9 @@ export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate,
   const initializedRef = useRef(false);
 
   useEffect(() => {
+    // The chat now begins via the opening question submit button instead of auto-running on mount.
     if (!initializedRef.current) {
       initializedRef.current = true;
-      sendMessage('');
     }
   }, []);
 
@@ -72,11 +77,15 @@ export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate,
         }
       }
 
-      const historyForApi = messages.map(m => ({
+      let historyForApi = messages.map(m => ({
         role: m.role,
         parts: [{ text: m.content }]
       }));
       
+      if (isInitial && openingInput.trim()) {
+        historyForApi = [{ role: 'user', parts: [{ text: `Before the session began, I was asked what brought me here today. I said: "${openingInput}"` }] }];
+      }
+
       if (!isInitial) {
         historyForApi.push({ role: 'user', parts: [{ text: currentInput }] });
       }
@@ -132,9 +141,89 @@ export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate,
     }
   };
 
+  const handleReaction = (idx) => {
+    if (reactions.includes(idx)) return;
+    const updated = [...reactions, idx];
+    setReactions(updated);
+    localStorage.setItem('fs_reactions', JSON.stringify(updated));
+    if (navigator.vibrate) navigator.vibrate([15]);
+  };
+
   return (
-    <div className="min-h-screen bg-[#050508] text-[#c9a84c] font-serif flex flex-col items-center justify-center p-0 relative overflow-hidden">
+    <div 
+      className="min-h-screen text-[#c9a84c] font-serif flex flex-col items-center justify-center p-0 relative overflow-hidden"
+      style={{
+        backgroundColor: `hsl(${30 * Math.min(substantiveCounter / 10, 1)}, ${8 * Math.min(substantiveCounter / 10, 1)}%, ${3 + (2 * Math.min(substantiveCounter / 10, 1))}%)`,
+        transition: 'background-color 3s ease'
+      }}
+    >
       <BackgroundEffects />
+      
+      {!openingSubmitted && messages.length === 0 && !isLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.5 }}
+          className="fixed inset-0 flex flex-col items-center justify-center z-[100] px-6"
+          style={{ backgroundColor: '#050508' }}
+        >
+          <BackgroundEffects />
+          <div className="relative z-10 max-w-xl w-full text-center">
+            <p className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/40 mb-8">Before We Begin</p>
+            <p className="text-2xl md:text-3xl font-light text-zinc-300 leading-relaxed mb-12">
+              What brought you here today?
+            </p>
+            <textarea
+              value={openingInput}
+              onChange={e => setOpeningInput(e.target.value)}
+              placeholder="Say as much or as little as you want..."
+              className="w-full bg-transparent border-b border-[#c9a84c]/20 focus:border-[#c9a84c] text-white/80 text-lg font-light leading-relaxed resize-none focus:outline-none placeholder:text-zinc-700 transition-all duration-700 pb-4"
+              rows={3}
+              autoFocus
+            />
+            <motion.button
+              onClick={() => {
+                setOpeningSubmitted(true);
+                sendMessage('');
+              }}
+              disabled={!openingInput.trim()}
+              className="mt-8 text-sm tracking-[0.4em] uppercase border-b border-[#c9a84c]/30 pb-2 hover:border-[#c9a84c] transition-all text-[#c9a84c] disabled:opacity-20"
+            >
+              Begin the excavation
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Depth Pulse — left side vertical indicator */}
+      <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex-col items-center gap-2 hidden md:flex" suppressHydrationWarning>
+        <p className="text-[8px] uppercase tracking-[0.4em] text-zinc-700 mb-2"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>
+          Depth
+        </p>
+        <div className="w-px h-48 bg-zinc-900 relative overflow-hidden rounded-full">
+          <motion.div
+            className="absolute bottom-0 left-0 right-0 rounded-full"
+            style={{ background: 'linear-gradient(to top, #c9a84c, #4a1d96)' }}
+            animate={{ height: `${Math.min((substantiveCounter / 8) * 100, 100)}%` }}
+            transition={{ duration: 1.5, ease: 'easeOut' }}
+          />
+        </div>
+        <div className="flex flex-col gap-1 mt-2">
+          {['surface', 'layers', 'core'].map((label, i) => (
+            <p key={label}
+              className="text-[7px] uppercase tracking-widest transition-all duration-1000"
+              style={{
+                color: substantiveCounter >= i * 3 ? '#c9a84c' : '#374151',
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                transform: 'rotate(180deg)'
+              }}>
+              {label}
+            </p>
+          ))}
+        </div>
+      </div>
 
       {/* Fixed top-right controls */}
       <div className="fixed top-6 right-6 z-50 flex items-center gap-4">
@@ -237,6 +326,19 @@ export default function ChatInterface({ apiKey, onReveal, onQuestionCountUpdate,
                             </button>
                           ))}
                         </motion.div>
+                      )}
+
+                      {msg.role === 'model' && (
+                        <button
+                          onClick={() => handleReaction(idx)}
+                          className={`mt-4 text-[9px] uppercase tracking-[0.4em] transition-all duration-700 ${
+                            reactions.includes(idx)
+                              ? 'text-[#c9a84c]/60'
+                              : 'text-zinc-800 hover:text-zinc-600'
+                          }`}
+                        >
+                          {reactions.includes(idx) ? 'this hit ·' : 'this hit'}
+                        </button>
                       )}
                     </div>
                   </motion.div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundEffects from './BackgroundEffects';
 import { useVoice } from '../hooks/useVoice';
+import CinematicLoader from './CinematicLoader';
 
 export default function FutureProfiles({ apiKey, coreDesire, onProceedStep3, musicEnabled, toggleMusicEnabled, voiceEnabled, toggleVoiceEnabled }) {
   const [profiles, setProfiles] = useState(null);
@@ -72,16 +73,17 @@ export default function FutureProfiles({ apiKey, coreDesire, onProceedStep3, mus
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center h-64 text-center"
+            className="flex flex-col items-center justify-center h-64 w-full"
           >
-            <p className="text-xl md:text-2xl tracking-[0.2em] uppercase text-[#c9a84c]/80 mb-8 animate-pulse font-bold">
-              Observing the diverging paths...
-            </p>
-            <div className="flex space-x-3">
-              <motion.div className="w-1.5 h-1.5 rounded-full bg-[#c9a84c]/40" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0 }} />
-              <motion.div className="w-1.5 h-1.5 rounded-full bg-[#c9a84c]/40" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0.4 }} />
-              <motion.div className="w-1.5 h-1.5 rounded-full bg-[#c9a84c]/40" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 2, delay: 0.8 }} />
-            </div>
+            <CinematicLoader 
+              texts={[
+                "Observing the diverging paths",
+                "Calculating the passive cost",
+                "Measuring the active struggle",
+                "Solidifying timelines"
+              ]} 
+              className="text-xl md:text-2xl tracking-[0.2em] uppercase text-[#c9a84c]/80 font-bold"
+            />
           </motion.div>
         )}
 

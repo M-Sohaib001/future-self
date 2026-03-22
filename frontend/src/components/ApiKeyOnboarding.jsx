@@ -8,11 +8,14 @@ export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEna
   const [apiKey, setApiKey] = useState('');
   const [showGuide, setShowGuide] = useState(false);
   const [showTeaser, setShowTeaser] = useState(true);
+  const { speak, stopSpeaking, isSpeaking } = useVoice();
 
   useEffect(() => {
-    const t = setTimeout(() => setShowTeaser(false), 7000);
-    return () => clearTimeout(t);
-  }, []);
+    if (showTeaser && voiceEnabled) {
+      speak("In the next few minutes, an oracle will ask you questions no one has ever asked you. It will find something true about you. Then it will show you what happens next — in both directions.", { rate: 0.85, pitch: 0.8, delay: 500 });
+    }
+    return () => stopSpeaking();
+  }, [showTeaser, voiceEnabled, speak, stopSpeaking]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -32,31 +35,58 @@ export default function ApiKeyOnboarding({ onStart, musicEnabled, toggleMusicEna
             className="min-h-screen bg-[#050508] font-serif flex flex-col items-center justify-center p-6 relative overflow-hidden text-center fixed inset-0 z-50"
           >
             <BackgroundEffects />
-            <div className="relative z-10 max-w-2xl space-y-12">
+            <div className="relative z-10 max-w-3xl space-y-16 mt-12">
               {[
                 { delay: 0.5, text: "In the next few minutes, an oracle will ask you questions no one has ever asked you." },
-                { delay: 2.5, text: "It will find something true about you." },
-                { delay: 4.5, text: "Then it will show you what happens next — in both directions." }
+                { delay: 3.5, text: "It will find something true about you." },
+                { delay: 6.5, text: "Then it will show you what happens next — in both directions." }
               ].map((line, i) => (
                 <motion.p key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: line.delay, duration: 1.5 }}
-                  className="text-xl md:text-3xl font-light text-zinc-300 leading-relaxed tracking-wide">
+                  initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  transition={{ delay: line.delay, duration: 2.5, ease: "easeOut" }}
+                  className="text-2xl md:text-5xl font-light text-zinc-300 leading-tight tracking-wider drop-shadow-2xl"
+                  style={{ textShadow: '0 0 30px rgba(255,255,255,0.1)' }}
+                >
                   {line.text}
                 </motion.p>
               ))}
-              <motion.button
+              
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 6, duration: 1 }}
-                onClick={() => setShowTeaser(false)}
-                className="text-[10px] uppercase tracking-[0.5em] text-[#c9a84c]/60 hover:text-[#c9a84c] transition-all border-b border-transparent hover:border-[#c9a84c]/40 pb-1"
+                transition={{ delay: 9.5, duration: 1.5 }}
+                className="pt-12"
               >
-                I'm ready
-              </motion.button>
+                <button
+                  onClick={() => {
+                    stopSpeaking();
+                    setShowTeaser(false);
+                  }}
+                  className="group relative px-12 py-4 border border-white/10 overflow-hidden transition-all duration-700 hover:border-white/30"
+                >
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[#c9a84c] transition-all duration-700 group-hover:h-full -z-10 opacity-10" />
+                  <span className="text-xs uppercase tracking-[0.8em] text-zinc-400 group-hover:text-white transition-colors duration-500 font-bold">
+                    I am ready
+                  </span>
+                </button>
+              </motion.div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTeaser && isSpeaking && (
+          <motion.button
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            onClick={stopSpeaking}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] text-[10px] uppercase tracking-[0.4em] text-[#c9a84c]/60 hover:text-[#c9a84c] border border-[#c9a84c]/20 px-6 py-2 backdrop-blur-md bg-black/40 transition-all font-sans"
+          >
+            ◼ Stop
+          </motion.button>
         )}
       </AnimatePresence>
 

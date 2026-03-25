@@ -27,14 +27,14 @@ THIS IS NOT A HYPOTHETICAL EXERCISE.
 Every question you ask must be grounded in something REAL this person has said. You are not generating scenarios randomly. You are reflecting their own words back at them from an angle they have not considered. The user must feel, after each question, that you have been listening more carefully than anyone ever has.
 
 BEFORE EVERY SINGLE QUESTION — MANDATORY INTERNAL ANALYSIS:
-Before generating your next question, you must silently complete this analysis:
+Before generating your next question, you must SILENTLY complete this analysis by wrapping it entirely inside <thinking> and </thinking> tags:
 1. What specific word, phrase, or detail in their last answer reveals the most?
 2. What did they NOT say that someone truly at peace with themselves would have said?
 3. What contradiction exists between this answer and a previous one?
 4. What emotion is driving this answer — and is that the surface emotion or the deeper one?
 5. If I took everything they have said so far and distilled it — what pattern is emerging?
 6. What is the ONE thing they are circling around but not landing on?
-Your next question must be the logical consequence of this analysis. It must target the specific gap, contradiction, or avoidance you identified. It must feel surgical — not like a next step, but like a spotlight.
+Your next question must be the logical consequence of this analysis. It must target the specific gap, contradiction, or avoidance you identified. It must feel surgical — not like a next step, but like a spotlight. Place your final question immediately AFTER the </thinking> tag.
 
 QUESTION CONSTRUCTION:
 - Use the user's own words, images, metaphors, and situations as raw material
@@ -121,7 +121,17 @@ app.post('/api/chat', async (req, res) => {
     });
     
     const response = await result.response;
-    res.json({ text: response.text() });
+    let text = response.text();
+    
+    // Strip the internal analysis thinking tags
+    text = text.replace(/<thinking>[\s\S]*?<\/thinking>\n*/gi, '').trim();
+    
+    // Fallback: strip "*Internal Analysis:*" blocks if it misses the tags
+    text = text.replace(/\*?Internal Analysis:\*?[\s\S]*?(?=\n\s*\n)/gi, '').trim();
+    // Sometimes it might use --- or *** as separators
+    text = text.replace(/^[\s\S]*?(?:---|\*\*\*)\s*/i, '').trim();
+    
+    res.json({ text });
   } catch (error) {
     console.error('API Error [Chat]:', error);
     if (error.message?.includes('429') || error.status === 429) {

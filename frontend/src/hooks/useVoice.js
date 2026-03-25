@@ -35,17 +35,19 @@ export function useVoice() {
     window.speechSynthesis.cancel(); // Stop any current speech
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = options.rate || 0.82;       // Slow and deliberate
-    utterance.pitch = options.pitch || 0.88;     // Slightly lower = gravitas
-    utterance.volume = options.volume || 0.95;
+    // A slightly faster rate and natural pitch reduces the "robotic drawl" effect.
+    utterance.rate = options.rate || 0.92;       
+    utterance.pitch = options.pitch || 0.95;     
+    utterance.volume = options.volume || 1.0;
     
-    // Try to find the best available voice — prefer deep, clear English voices
+    // Try to find the most natural available voice — 'Natural' and 'Online' voices use cloud TTS
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v => 
-      v.name.includes('Daniel') ||      // macOS — deep British male
-      v.name.includes('Arthur') ||      // macOS — British
-      v.name.includes('Google UK') ||   // Chrome — British male
-      v.name.includes('Microsoft David') // Windows — male
+      v.name.includes('Natural') ||        // Edge/Windows high-quality natural voices
+      v.name.includes('Online') ||         // Microsoft online voices
+      v.name.includes('Google US English') || // Google Chrome HQ
+      v.name.includes('Daniel') ||         // macOS standard fallback
+      v.name.includes('Google UK')         // Chrome fallback
     );
     if (preferred) utterance.voice = preferred;
     

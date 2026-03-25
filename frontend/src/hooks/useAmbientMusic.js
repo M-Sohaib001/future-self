@@ -15,7 +15,7 @@ export function useAmbientMusic() {
 
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 4);
+    masterGain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 6); // Louder and slower fade in
     masterGain.connect(ctx.destination);
     gainRef.current = masterGain;
 
@@ -49,7 +49,7 @@ export function useAmbientMusic() {
 
     // Layer 3 — Shimmer (320Hz) — DECLARE shimmerGain FIRST
     const shimmerGain = ctx.createGain();
-    shimmerGain.gain.value = 0.04;
+    shimmerGain.gain.value = 0.12; // Boosted high-end sparkle
     const shimmer = ctx.createOscillator();
     shimmer.type = 'sine';
     shimmer.frequency.setValueAtTime(320, ctx.currentTime);
@@ -77,7 +77,7 @@ export function useAmbientMusic() {
     }
     convolver.buffer = reverbBuffer;
     const reverbGain = ctx.createGain();
-    reverbGain.gain.value = 0.3;
+    reverbGain.gain.value = 0.65; // Doubled reverb depth for immersion
     masterGain.connect(convolver);
     convolver.connect(reverbGain);
     reverbGain.connect(ctx.destination);

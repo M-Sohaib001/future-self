@@ -34,9 +34,6 @@ app.use(cors({
   credentials: true
 }));
 
-// 🔥 CRITICAL: handle preflight manually
-app.options('*', cors());
-
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;

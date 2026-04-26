@@ -13,8 +13,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-import cors from "cors";
-
 const allowedOrigins = [
   "http://localhost:3000",
   "https://future-self-omega.vercel.app"

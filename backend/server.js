@@ -13,14 +13,30 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+import cors from "cors";
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://future-self-omega.vercel.app"
+];
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://future-self-omega.vercel.app"
-  ],
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
+
+// 🔥 CRITICAL: handle preflight manually
 app.options('*', cors());
 
 app.use(express.json());

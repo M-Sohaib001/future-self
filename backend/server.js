@@ -12,7 +12,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors({ origin: '*' }));
+
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://future-self-omega.vercel.app"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+app.options('*', cors());
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
